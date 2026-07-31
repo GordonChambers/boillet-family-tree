@@ -83,7 +83,7 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
 
 .tools{position:absolute;top:10px;left:10px;right:10px;z-index:20;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
 .tools > *{pointer-events:auto}
-.chipset{display:flex;gap:0;background:var(--ink1);border:1px solid var(--rule);border-radius:4px;overflow:hidden;box-shadow:var(--shadow)}
+.chipset{display:flex;flex-wrap:wrap;gap:0;background:var(--ink1);border:1px solid var(--rule);border-radius:4px;overflow:hidden;box-shadow:var(--shadow)}
 .chipset button{
   font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
   padding:7px 9px;color:var(--chalk3);border-right:1px solid var(--rule);white-space:nowrap;
@@ -107,10 +107,16 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
   background:rgba(21,28,36,.95);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;
   font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--chalk2);box-shadow:0 3px 14px rgba(0,0,0,.5);
 }
+html[data-theme="light"] .legend{background:rgba(240,237,228,.95)}
 .legend .t{color:var(--chalk3);letter-spacing:.1em;text-transform:uppercase;font-size:9px;margin-bottom:4px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .legend i.leg-curve{width:18px;height:0;border-radius:0;border-top:2px solid var(--chalk2);vertical-align:middle;transform:rotate(-6deg)}
 .legend i.leg-dash{width:18px;height:0;border-radius:0;border-top:2px dashed #C9A44E;vertical-align:middle}
+.legend i.leg-fil{width:18px;height:0;border-radius:0;border-top:1px solid var(--chalk3);vertical-align:middle}
+.legend i.leg-ring{width:11px;height:11px;border-radius:50%;border:1.4px solid var(--chalk2);background:none;vertical-align:-2px}
+.legend i.leg-ring.est{border-style:dotted}
+.legend i.leg-ring.band{border-color:#C9A44E}
+.legend .leg-sym{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-2px}
 .legend .ramp{height:8px;border-radius:2px;margin:3px 0 2px}
 .legend .rl{display:flex;justify-content:space-between;color:var(--chalk3)}
 
@@ -288,6 +294,28 @@ h2:first-of-type{margin-top:0}
 .pcard .pd{font-family:var(--mono);font-size:9px;color:var(--chalk3);margin-top:4px;line-height:1.5}
 .pcard .pd span{display:block}
 
+.life-ticker{
+  flex-basis:100%;display:none;flex-direction:column;gap:2px;
+  margin-top:2px;max-width:min(300px,66vw);pointer-events:none;
+}
+.life-ticker.on{display:flex}
+.life-ticker button{
+  pointer-events:auto;text-align:left;display:block;
+  font-family:var(--mono);font-size:9.5px;line-height:1.35;
+  color:var(--chalk2);background:rgba(21,28,36,.9);
+  border:1px solid var(--rule);border-left:2px solid var(--chalk3);
+  border-radius:3px;padding:3px 7px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
+.life-ticker button:hover{color:var(--chalk);border-color:var(--woad)}
+.life-ticker button b{font-weight:600;color:var(--chalk)}
+.life-ticker button .ty{color:var(--chalk3);margin-right:5px}
+.life-ticker button.ev-wed,.life-ticker button.ev-kid{border-left-color:#C9A44E}
+.life-ticker button.ev-born{border-left-color:var(--verd)}
+.life-ticker button.ev-died{border-left-color:var(--madder)}
+.life-ticker button.ev-move{border-left-color:var(--woad)}
+
 .tl-player{
   position:absolute;left:10px;right:10px;bottom:10px;z-index:25;
   background:var(--ink1);border:1px solid var(--rule);border-radius:6px;
@@ -426,6 +454,7 @@ h2:first-of-type{margin-top:0}
     <div class="stage" id="stage-map">
       <div class="tools">
         <div class="chipset" id="mapfilters"></div>
+        <div class="life-ticker" id="life-ticker" aria-live="polite"></div>
       </div>
       <div class="map-wrap" id="map-wrap">
         <svg id="map" role="img" aria-label="Carte des lieux"></svg>
@@ -536,6 +565,16 @@ const T = {
     living:'Vivants', livingHint:'Sans date de décès → âge médian',
     livingMig:'Courbe — déménagement (naissance → mariage)',
     livingUnion:'Tirets dorés — époux unis',
+    livMedallion:'Médaillon', livSilhouette:'Silhouette',
+    livStyleHint:'Style des vivants',
+    livRingSure:'Anneau plein — âge (décès attesté)',
+    livRingEst:'Anneau pointillé — âge (décès estimé)',
+    livBand:'Anneau doré — marié',
+    livSigil:'Sigle — domaine de métier',
+    livCross:'Croix — sépulture (décès attesté)',
+    livKin:'Filament — parent et enfant',
+    livLives:'Vies',
+    evBorn:'Naissance', evWed:'Mariage', evMove:'Installation', evKid:'Enfant', evDied:'Décès',
     themeLight:'Mode clair', themeDark:'Mode sombre',
     at:'à', evAt:n=>`${n} acte${n>1?'s':''}`
   },
@@ -562,6 +601,16 @@ const T = {
     living:'Living', livingHint:'No death date → median age',
     livingMig:'Curved line — move (birth → marriage)',
     livingUnion:'Gold dashes — united spouses',
+    livMedallion:'Medallion', livSilhouette:'Silhouette',
+    livStyleHint:'Style of the living',
+    livRingSure:'Solid ring — age (death recorded)',
+    livRingEst:'Dotted ring — age (death estimated)',
+    livBand:'Gold ring — married',
+    livSigil:'Sigil — kind of work',
+    livCross:'Cross — grave (death recorded)',
+    livKin:'Filament — parent and child',
+    livLives:'Lives',
+    evBorn:'Born', evWed:'Married', evMove:'Settled', evKid:'Child', evDied:'Died',
     themeLight:'Light mode', themeDark:'Dark mode',
     at:'at', evAt:n=>`${n} record${n>1?'s':''}`
   }
@@ -1902,6 +1951,7 @@ const mapCardsEl = document.getElementById('map-cards');
 let mapCardNodes = {};
 
 function syncMapOverlay(S) {
+  if (mapLiving && zpMap && zpMap.k !== livingK) updateLivingLayer();
   const r = mapSvg.getBoundingClientRect();
   const sx = r.width / (MW + 16), sy = r.height / (MH + 16);
   const s = Math.min(sx, sy);
@@ -1941,6 +1991,17 @@ let mapTime = YMAX, mapYearFloor = YMAX, playing = null, playSpeed = 2, lastFram
 const YRS_PER_SEC = 3;
 const MIG_YRS = 4;
 const smoothT = t => t * t * (3 - 2 * t);
+
+/* living layer tuning — every span below is in map-years, never wall-clock,
+   so scrubbing and pausing stay in step with the animation */
+const EVENT_YRS = 3;
+const DEATH_FADE = 3;
+const BAND_YRS = 2;
+const BIRTH_YRS = 1.2;
+const TICKER_YRS = 4;
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let LIVING_STYLE = localStorage.getItem('boillet-living-style') === 'silhouette' ? 'silhouette' : 'medallion';
+let mapFitK = 0, livingLod = -1, livingK = -1;
 
 function mapAllOn() { return !mapLiving && MAP_LAYERS.every(k => mapLayers[k]); }
 function cardsVisible() {
@@ -2027,7 +2088,7 @@ function mapXY(pl, id, offMap) {
 
 function livingOffsetPairs(time) {
   const pairs = [];
-  ALL.filter(p => personAlive(p, time) && p.bp?.[2]).forEach(p => {
+  ALL.filter(p => livingRenderable(p, time)).forEach(p => {
     pairs.push({ id: p.id, pl: p.bp });
     if (yr(p.u) && p.up?.[2] && time >= yr(p.u)) pairs.push({ id: p.id, pl: p.up });
   });
@@ -2166,80 +2227,562 @@ function cardDetails(p) {
   return rows;
 }
 
-function updateLivingLayer() {
-  mapG.querySelector('#living')?.remove();
-  if (!mapLiving) return;
-  const gl = el('g', { id: 'living' });
-  const gLines = el('g', { 'pointer-events': 'none' });
-  const gDots = el('g', {});
-  const time = mapTime;
-  const offMap = buildLivingOffsets(time);
-  const dotStroke = getComputedStyle(document.documentElement).getPropertyValue('--chalk').trim() || '#E8E2D5';
-  const alive = ALL.filter(p => personAlive(p, time) && p.bp && p.bp[2] != null);
-  const pos = new Map();
+/* ══════════ living layer ══════════ */
 
-  alive.forEach(p => {
-    const xy = livingXY(p, time, offMap);
-    if (!xy) return;
-    const [x, y] = xy;
-    pos.set(p.id, [x, y]);
-    const mig = livingMigState(p, time, offMap);
-    if (mig) migCurve(gLines, mig.x0, mig.y0, mig.x1, mig.y1, mig.col, mig.t < 1 ? 0.45 : 0.55, 1.1, mig.t);
-    else if (yr(p.u) && p.up?.[2] != null && time >= yr(p.u)) {
-      const [x0, y0] = mapXY(p.bp, p.id, offMap);
-      const [x1, y1] = mapXY(p.up, p.id, offMap);
-      if (Math.hypot(x1 - x0, y1 - y0) > 2) {
-        const col = ramp(ERA, yr(p.b) || yr(p.u)) || BRC[p.br] || '#6E9CBF';
-        migCurve(gLines, x0, y0, x1, y1, col, 0.5);
-      }
+/* one entry per person: every date the map can dramatise, resolved once */
+const LIFE_EV = new Map();
+(function buildLifeEvents() {
+  ALL.forEach(p => {
+    const by = yr(p.b), uy = yr(p.u), dy = yr(p.d);
+    const edy = effectiveDeath(p);
+    let tradeY = null;
+    if (p.o && p.o.length) {
+      let hint = null;
+      p.o.forEach(o => {
+        const m = String(o).match(/\b(1[5-9]\d\d)\b/);
+        if (m && (hint == null || +m[1] < hint)) hint = +m[1];
+      });
+      tradeY = hint != null ? hint : (uy != null ? uy : (by != null ? by + 20 : null));
+      if (by != null && tradeY != null && tradeY < by + 12) tradeY = by + 12;
+      if (edy != null && tradeY != null && tradeY > edy) tradeY = edy;
     }
+    const cid = p.id > 1 ? (p.id >> 1) : null;
+    const kid = cid != null && has(cid) ? get(cid) : null;
+    const moved = !!(p.bp && p.up && p.bp[2] != null && p.up[2] != null &&
+      (Math.abs(p.bp[2] - p.up[2]) > 1e-4 || Math.abs(p.bp[3] - p.up[3]) > 1e-4));
+    LIFE_EV.set(p.id, {
+      by, uy, dy, edy, certain: dy != null,
+      approxBirth: !!(p.b && p.b[3]),
+      tradeY, cat: p.c || null,
+      childId: kid ? cid : null, kidY: kid ? yr(kid.b) : null,
+      moved, moveEnd: (moved && uy != null) ? uy + MIG_YRS : null,
+      grave: (p.dp && p.dp[2] != null) ? p.dp : ((p.up && p.up[2] != null) ? p.up : p.bp)
+    });
+  });
+})();
+
+/* 0..1 eased progress since an event, or null before it happens */
+function phase(now, y, span) {
+  if (y == null || now < y) return null;
+  const raw = (now - y) / (span || EVENT_YRS);
+  return raw >= 1 ? 1 : smoothT(raw);
+}
+
+function livingRenderable(p, time) {
+  if (!p.bp || p.bp[2] == null) return false;
+  const by = yr(p.b);
+  if (by == null || by > time) return false;
+  const edy = effectiveDeath(p);
+  return edy == null || time <= edy + DEATH_FADE;
+}
+
+function livingStage(age, ev, time) {
+  if (age == null) return 'adult';
+  if (age < 3) return 'infant';
+  if (age < 13) return 'child';
+  if (age < 18) return 'youth';
+  if (age < 60 && ev.kidY != null && time >= ev.kidY && time - ev.kidY < 10) return 'parent';
+  if (age >= 60) return 'elder';
+  return 'adult';
+}
+
+function coreRadius(age) {
+  if (age == null) return 3;
+  if (age < 3) return 1.9 + age * 0.15;
+  if (age < 13) return 2.35 + (age - 3) * 0.055;
+  if (age < 18) return 2.9 + (age - 13) * 0.06;
+  if (age < 45) return 3.2;
+  return 3.2 - Math.min(0.45, (age - 45) * 0.011);
+}
+
+function mixHex(a, b, k) {
+  const ca = hex2rgb(a), cb = hex2rgb(b);
+  return rgb2hex([0, 1, 2].map(i => ca[i] + (cb[i] - ca[i]) * k));
+}
+
+function arcPath(r, frac) {
+  const f = Math.max(0, Math.min(1, frac));
+  const rr = r.toFixed(2), top = (-r).toFixed(2);
+  if (f >= 0.999) return `M 0 ${top} A ${rr} ${rr} 0 1 1 0 ${rr} A ${rr} ${rr} 0 1 1 0 ${top}`;
+  const a = -Math.PI / 2 + f * Math.PI * 2;
+  return `M 0 ${top} A ${rr} ${rr} 0 ${f > 0.5 ? 1 : 0} 1 ` +
+    `${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`;
+}
+
+/* ground arc under a silhouette: chord 2r on a circle of radius 1.25r */
+const GROUND_LEN_K = 2.318;
+function groundPath(r, y) {
+  const rr = (r * 1.25).toFixed(2), yy = (y || 0).toFixed(2);
+  return `M ${(-r).toFixed(2)} ${yy} A ${rr} ${rr} 0 0 0 ${r.toFixed(2)} ${yy}`;
+}
+
+const LIVING_DEFS = `<defs id="living-defs">
+<symbol id="sg-land" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11.2V4.2"/><path d="M6 6.7 3.5 4.9M6 6.7 8.5 4.9M6 4.4 4.1 2.7M6 4.4 7.9 2.7"/></g></symbol>
+<symbol id="sg-wood" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11.2V7.7"/><path d="M2.9 7.7 6 1.9l3.1 5.8z"/></g></symbol>
+<symbol id="sg-craft" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 10.8 7.3 5.9"/><path d="M6.1 3.2 10 7.1 8.5 8.6 4.6 4.7z"/></g></symbol>
+<symbol id="sg-cloth" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M1.4 6C3.6 3.1 8.4 3.1 10.6 6 8.4 8.9 3.6 8.9 1.4 6z"/><path d="M4.5 6h3"/></g></symbol>
+<symbol id="sg-labour" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.3h8l-1.3 5.5H3.3z"/><path d="M4 5.3a2 2 0 0 1 4 0"/></g></symbol>
+<symbol id="sg-trade" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.2v7.6M2.3 4.1h7.4"/><circle cx="2.5" cy="6.7" r="1.6"/><circle cx="9.5" cy="6.7" r="1.6"/></g></symbol>
+<symbol id="sg-service" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="3.7" cy="8.3" r="2.2"/><path d="M5.4 6.7 10.2 1.9M8.2 3.7 9.6 5.1M6.9 5 8.3 6.4"/></g></symbol>
+<symbol id="sg-public" viewBox="0 0 12 12"><g fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.4 10.1 3.3v3.2c0 2.4-1.9 3.8-4.1 4.6-2.2-.8-4.1-2.2-4.1-4.6V3.3z"/><path d="M6 5v3.1"/></g></symbol>
+<symbol id="sil-infant" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="6" cy="5.1" r="1.7"/><path d="M6 6.9c1.7 0 2.6 1.4 2.6 2.9 0 .9-1.2 1.5-2.6 1.5s-2.6-.6-2.6-1.5c0-1.5.9-2.9 2.6-2.9z"/></g></symbol>
+<symbol id="sil-child" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="6" cy="4" r="1.35"/><path d="M6 5.6c1.2 0 1.8.9 1.8 2v1.1H4.2V7.6c0-1.1.6-2 1.8-2z"/><path d="M4.75 9.2h1v2.1h-1zM6.25 9.2h1v2.1h-1z"/></g></symbol>
+<symbol id="sil-youth" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="6" cy="3.4" r="1.45"/><path d="M6 5.1c1.35 0 2.05 1 2.05 2.3v1.2H3.95V7.4c0-1.3.7-2.3 2.05-2.3z"/><path d="M4.5 9.1h1.05v2.4H4.5zM6.45 9.1h1.05v2.4H6.45z"/></g></symbol>
+<symbol id="sil-adult" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="6" cy="2.9" r="1.6"/><path d="M6 4.8c1.5 0 2.3 1.1 2.3 2.6v1.3H3.7V7.4c0-1.5.8-2.6 2.3-2.6z"/><path d="M4.3 9.2h1.2v2.6H4.3zM6.5 9.2h1.2v2.6H6.5z"/></g></symbol>
+<symbol id="sil-parent" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.4" cy="2.9" r="1.5"/><path d="M4.4 4.7c1.4 0 2.1 1.1 2.1 2.5v1.2H2.3V7.2c0-1.4.7-2.5 2.1-2.5z"/><path d="M2.9 9.1h1.1v2.6H2.9zM4.8 9.1h1.1v2.6H4.8z"/><circle cx="9.1" cy="6.2" r="1.05"/><path d="M9.1 7.5c.9 0 1.35.6 1.35 1.4v.7H7.75v-.7c0-.8.45-1.4 1.35-1.4z"/><path d="M8.25 10.1h.65v1.6h-.65zM9.3 10.1h.65v1.6H9.3z"/></g></symbol>
+<symbol id="sil-elder" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.3" cy="3.7" r="1.5"/><path d="M4.6 5.4c1.3.1 2 1.1 1.85 2.3l-.15 1.2-4.1-.5.15-1.2c.15-1.2 1-2 2.25-1.8z"/><path d="M2.5 9.2h1.1l-.35 2.5H2.15zM4.55 9.45h1.1l.3 2.25h-1.1z"/></g><g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M8.1 5.4v6.2"/></g></symbol>
+<symbol id="sym-cross" viewBox="0 0 12 12"><g fill="currentColor"><path d="M5.05 1.1h1.9v2.9h2.5v1.9h-2.5v3.7h-1.9V5.9h-2.5V4h2.5z"/><path d="M2.85 9.9h6.3v1.8h-6.3z"/></g></symbol>
+</defs>`;
+
+function ensureLivingDefs() {
+  if (document.getElementById('living-defs')) return;
+  const doc = new DOMParser().parseFromString(
+    `<svg xmlns="http://www.w3.org/2000/svg">${LIVING_DEFS}</svg>`, 'image/svg+xml');
+  const defs = doc.documentElement.firstElementChild;
+  if (defs) mapSvg.insertBefore(document.importNode(defs, true), mapSvg.firstChild);
+}
+
+let livingG = null, livingGraves = null, livingLines = null, livingDots = null;
+const livingNodes = new Map();
+const graveNodes = new Map();
+
+function ensureLivingGroups() {
+  if (livingG) return;
+  livingG = el('g', { id: 'living' });
+  livingGraves = el('g', { 'pointer-events': 'none' });
+  livingLines = el('g', { 'pointer-events': 'none' });
+  livingDots = el('g', {});
+  livingG.append(livingGraves, livingLines, livingDots);
+}
+
+function livingTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (k, f) => cs.getPropertyValue(k).trim() || f;
+  return {
+    chalk: v('--chalk', '#E8E2D5'),
+    chalk2: v('--chalk2', '#A5AEB9'),
+    chalk3: v('--chalk3', '#6E7885'),
+    gold: '#C9A44E'
+  };
+}
+
+/* detail level relative to the fitted view: 0 sparse, 1 full node, 2 named */
+function currentLod() {
+  const rel = mapFitK > 0 ? zpMap.k / mapFitK : zpMap.k;
+  return rel < 0.75 ? 0 : rel < 2 ? 1 : 2;
+}
+
+function makeLivingNode(p) {
+  const g = el('g', { class: 'lnode', 'data-id': p.id });
+  const n = {
+    g,
+    halo: el('circle', { r: 1, fill: 'none', 'stroke-width': 1.1, opacity: 0, 'pointer-events': 'none' }),
+    dust: el('circle', { r: 1, fill: 'none', 'stroke-width': 0.9, 'stroke-dasharray': '1 2.4', opacity: 0, 'pointer-events': 'none' }),
+    sel: el('circle', { r: 1, fill: 'none', 'stroke-width': 1.2, opacity: 0, 'pointer-events': 'none' }),
+    ring: el('path', { d: '', fill: 'none', 'stroke-width': 1, 'stroke-linecap': 'round', opacity: 0, 'pointer-events': 'none' }),
+    band: el('circle', { r: 1, fill: 'none', stroke: '#C9A44E', 'stroke-width': 1.15, opacity: 0, 'pointer-events': 'none' }),
+    core: el('circle', { r: 1, 'pointer-events': 'none' }),
+    fig: el('use', { width: 13, height: 13, x: -6.5, y: -11, opacity: 0, 'pointer-events': 'none' }),
+    sigil: el('use', { width: 8, height: 8, opacity: 0, 'pointer-events': 'none' }),
+    cross: el('use', { width: 9, height: 9, x: -4.5, y: -9.5, opacity: 0, 'pointer-events': 'none' }),
+    label: el('text', { x: 0, y: 3, 'font-family': 'IBM Plex Mono, monospace', 'font-size': 7, opacity: 0, 'pointer-events': 'none' }),
+    /* elementsFromPoint skips <g>, so the tap target carries the id itself */
+    hit: el('circle', { r: 9, fill: 'transparent', 'data-id': p.id })
+  };
+  n.cross.setAttribute('href', '#sym-cross');
+  n.hit.style.cursor = 'pointer';
+  g.append(n.halo, n.dust, n.sel, n.ring, n.band, n.core, n.fig, n.sigil, n.cross, n.label, n.hit);
+  return n;
+}
+
+const EVENT_COL = { born: 'verd', trade: 'cat', wed: 'gold', kid: 'gold', died: 'madder' };
+
+/* most attributes hold steady between frames; skipping the unchanged ones
+   keeps the SVG off the style-recalc path during playback */
+function sa(node, k, v) {
+  const c = node.__a || (node.__a = {});
+  if (c[k] === v) return;
+  c[k] = v;
+  node.setAttribute(k, v);
+}
+function scol(node, v) {
+  if (node.__c === v) return;
+  node.__c = v;
+  node.style.color = v;
+}
+
+function activeLifeEvent(ev, time) {
+  let best = null;
+  const consider = (kind, y) => {
+    if (y == null || time < y || time > y + EVENT_YRS) return;
+    if (!best || y > best.y) best = { kind, y };
+  };
+  consider('born', ev.by);
+  consider('trade', ev.tradeY);
+  consider('wed', ev.uy);
+  consider('kid', ev.kidY);
+  consider('died', ev.edy);
+  return best;
+}
+
+function updateLivingNode(p, ctx) {
+  const ev = LIFE_EV.get(p.id);
+  const xy = ctx.pos.get(p.id);
+  let n = livingNodes.get(p.id);
+  if (!n) {
+    n = makeLivingNode(p);
+    livingNodes.set(p.id, n);
+    livingDots.appendChild(n.g);
+  }
+  const { time, th, lod } = ctx;
+  sa(n.g, 'transform', `translate(${xy[0].toFixed(2)} ${xy[1].toFixed(2)})`);
+  sa(n.g, 'opacity', ctx.dim && !ctx.dim.has(p.id) ? '0.3' : '1');
+
+  const dead = ev.edy != null && time > ev.edy;
+  const dphase = dead ? Math.min(1, (time - ev.edy) / DEATH_FADE) : 0;
+  const alive = 1 - dphase;
+  const age = ev.by != null ? (dead ? ev.edy - ev.by : time - ev.by) : null;
+  const pop = REDUCED_MOTION ? 1 : (phase(time, ev.by, BIRTH_YRS) ?? 1);
+  const r = coreRadius(age) * (0.25 + 0.75 * pop);
+  const base = p.s === 'F' ? '#C0605A' : '#6E9CBF';
+  const fill = mixHex(base, '#7C8797', age == null ? 0 : Math.max(0, Math.min(0.5, (age - 45) / 80)));
+  const sil = LIVING_STYLE === 'silhouette';
+  const evNow = activeLifeEvent(ev, time);
+  const catCol = ev.cat ? (CATC[ev.cat] || th.chalk2) : th.chalk2;
+
+  /* core / figure */
+  const figSize = (10 + r * 1.1) * (0.3 + 0.7 * pop);
+  const feet = figSize * 0.115, head = -figSize * 0.78;
+  if (sil) {
+    sa(n.core, 'r', '0');
+    sa(n.fig, 'href', '#sil-' + livingStage(age, ev, time));
+    sa(n.fig, 'width', figSize.toFixed(2));
+    sa(n.fig, 'height', figSize.toFixed(2));
+    sa(n.fig, 'x', (-figSize / 2).toFixed(2));
+    sa(n.fig, 'y', (-figSize * 0.86).toFixed(2));
+    scol(n.fig, fill);
+    sa(n.fig, 'opacity', (0.94 * alive).toFixed(3));
+  } else {
+    sa(n.fig, 'opacity', '0');
+    sa(n.core, 'r', r.toFixed(2));
+    sa(n.core, 'fill', fill);
+    sa(n.core, 'fill-opacity', (0.9 * alive).toFixed(3));
+    sa(n.core, 'stroke', th.chalk);
+    sa(n.core, 'stroke-width', '0.7');
+    sa(n.core, 'stroke-opacity', (0.8 * alive).toFixed(3));
+  }
+
+  /* age ring — solid when the death is recorded, dotted when it is a guess */
+  const span = (ev.edy != null && ev.by != null) ? Math.max(1, ev.edy - ev.by) : null;
+  const frac = span ? Math.min(1, Math.max(0, (Math.min(time, ev.edy) - ev.by) / span)) : 0;
+  const sure = ev.certain && !ev.approxBirth;
+  const ringR = sil ? figSize * 0.44 : r + 3;
+  if (lod > 0) {
+    sa(n.ring, 'd', sil ? groundPath(ringR, feet) : arcPath(ringR, frac));
+    if (sil) {
+      const glen = GROUND_LEN_K * ringR;
+      sa(n.ring, 'stroke-dasharray', `${(glen * frac).toFixed(2)} ${glen.toFixed(2)}`);
+    } else {
+      sa(n.ring, 'stroke-dasharray', sure ? 'none' : '0.9 1.7');
+    }
+    sa(n.ring, 'stroke', sure ? th.chalk2 : th.chalk3);
+    sa(n.ring, 'stroke-width', '0.85');
+    sa(n.ring, 'opacity', ((sure ? 0.72 : 0.6) * alive).toFixed(3));
+  } else sa(n.ring, 'opacity', '0');
+
+  /* wedding band, drawn on over BAND_YRS */
+  const wed = ev.uy != null ? phase(time, ev.uy, BAND_YRS) : null;
+  if (wed != null && lod > 0) {
+    const br = sil ? 2.1 : r + 1.7;
+    const circ = 2 * Math.PI * br;
+    sa(n.band, 'r', br.toFixed(2));
+    sa(n.band, 'cy', sil ? (head - br - 1).toFixed(2) : '0');
+    sa(n.band, 'stroke-dasharray', circ.toFixed(1));
+    sa(n.band, 'stroke-dashoffset', (circ * (1 - (REDUCED_MOTION ? 1 : wed))).toFixed(1));
+    sa(n.band, 'opacity', (0.85 * alive).toFixed(3));
+  } else sa(n.band, 'opacity', '0');
+
+  /* occupation sigil, from the year the trade is first documented */
+  const trade = ev.tradeY != null && ev.cat && time >= ev.tradeY;
+  if (trade && lod > 0) {
+    const tp = REDUCED_MOTION ? 1 : (phase(time, ev.tradeY, 1.5) ?? 0);
+    const gs = 8 * (0.5 + 0.5 * tp);
+    const sx = sil ? ringR + 1.2 : ringR + 1.4, sy = sil ? -r - 3.5 : -ringR - 1.4;
+    sa(n.sigil, 'href', '#sg-' + ev.cat);
+    sa(n.sigil, 'width', gs.toFixed(2));
+    sa(n.sigil, 'height', gs.toFixed(2));
+    sa(n.sigil, 'x', (sx - gs / 2).toFixed(2));
+    sa(n.sigil, 'y', (sy - gs / 2).toFixed(2));
+    scol(n.sigil, catCol);
+    sa(n.sigil, 'opacity', (0.9 * tp * alive).toFixed(3));
+  } else sa(n.sigil, 'opacity', '0');
+
+  /* death: a stone cross for a recorded burial, dust for an estimated one */
+  const cy0 = sil ? -figSize * 0.33 : 0;
+  if (dead && ev.certain) {
+    const cs = 7.5 * (0.55 + 0.45 * dphase);
+    sa(n.cross, 'width', cs.toFixed(2));
+    sa(n.cross, 'height', cs.toFixed(2));
+    sa(n.cross, 'x', (-cs / 2).toFixed(2));
+    sa(n.cross, 'y', (sil ? head - cs * 0.75 : -cs - r - 1).toFixed(2));
+    scol(n.cross, th.chalk2);
+    sa(n.cross, 'opacity', (0.9 - 0.45 * dphase).toFixed(3));
+    sa(n.dust, 'opacity', '0');
+  } else if (dead) {
+    sa(n.cross, 'opacity', '0');
+    sa(n.dust, 'cy', cy0.toFixed(2));
+    sa(n.dust, 'r', (r + 1.5 + dphase * 6).toFixed(2));
+    sa(n.dust, 'stroke', th.chalk3);
+    sa(n.dust, 'opacity', (0.55 * (1 - dphase)).toFixed(3));
+  } else {
+    sa(n.cross, 'opacity', '0');
+    sa(n.dust, 'opacity', '0');
+  }
+
+  /* event pulse */
+  if (evNow && !REDUCED_MOTION && lod > 0) {
+    const pr = phase(time, evNow.y, EVENT_YRS) ?? 0;
+    const key = EVENT_COL[evNow.kind];
+    const col = key === 'gold' ? th.gold : key === 'cat' ? catCol
+      : key === 'madder' ? '#C0605A' : key === 'verd' ? '#6E9E85' : th.chalk;
+    sa(n.halo, 'cy', cy0.toFixed(2));
+    sa(n.halo, 'r', (r + 1.5 + pr * 9).toFixed(2));
+    sa(n.halo, 'stroke', col);
+    sa(n.halo, 'opacity', (0.5 * (1 - pr)).toFixed(3));
+  } else sa(n.halo, 'opacity', '0');
+
+  /* selection */
+  if (SEL === p.id) {
+    sa(n.sel, 'cy', cy0.toFixed(2));
+    sa(n.sel, 'r', (sil ? figSize * 0.56 : ringR + 2.6).toFixed(2));
+    sa(n.sel, 'stroke', th.chalk);
+    sa(n.sel, 'opacity', '0.9');
+  } else sa(n.sel, 'opacity', '0');
+
+  /* name only when zoomed in, selected, or something just happened */
+  const named = lod > 1 || SEL === p.id || (evNow && lod > 0);
+  if (named) {
+    const txt = (firstGiven(p) || p.n).slice(0, 10);
+    if (n.label.textContent !== txt) n.label.textContent = txt;
+    sa(n.label, 'x', (ringR + 3).toFixed(1));
+    sa(n.label, 'y', (cy0 + 3 * ctx.labelScale).toFixed(2));
+    sa(n.label, 'font-size', (7 * ctx.labelScale).toFixed(2));
+    sa(n.label, 'fill', th.chalk);
+    sa(n.label, 'opacity', ((SEL === p.id ? 0.95 : 0.7) * alive).toFixed(3));
+  } else sa(n.label, 'opacity', '0');
+
+  sa(n.hit, 'cy', cy0.toFixed(2));
+  sa(n.hit, 'r', Math.max(7, sil ? figSize * 0.5 : ringR + 2).toFixed(1));
+}
+
+function drawLivingLines(shown, ctx) {
+  const { time, offMap, pos, th, lod } = ctx;
+  livingLines.textContent = '';
+
+  shown.forEach(p => {
+    if (!pos.has(p.id)) return;
+    const mig = livingMigState(p, time, offMap);
+    if (!mig) return;
+    if (mig.t >= 1 || REDUCED_MOTION) {
+      migCurve(livingLines, mig.x0, mig.y0, mig.x1, mig.y1, mig.col, 0.3, 0.9);
+      return;
+    }
+    /* comet: a short lit segment trailing the traveller */
+    const [mx, my] = migControl(mig.x0, mig.y0, mig.x1, mig.y1);
+    const len = quadLen(mig.x0, mig.y0, mx, my, mig.x1, mig.y1);
+    const head = len * mig.t;
+    if (head < 0.6) return;
+    const trail = Math.min(head, Math.max(8, len * 0.3));
+    const path = el('path', {
+      d: `M ${mig.x0.toFixed(1)} ${mig.y0.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${mig.x1.toFixed(1)} ${mig.y1.toFixed(1)}`,
+      fill: 'none', stroke: mig.col, 'stroke-width': 1.3, 'stroke-linecap': 'round', opacity: 0.7,
+      'stroke-dasharray': `0 ${(head - trail).toFixed(1)} ${trail.toFixed(1)} ${len.toFixed(1)}`
+    });
+    livingLines.appendChild(path);
   });
 
+  /* parent and child, while the child is still at home */
+  if (lod > 0) {
+    shown.forEach(p => {
+      const ev = LIFE_EV.get(p.id);
+      if (!ev || ev.childId == null) return;
+      const a = pos.get(p.id), b = pos.get(ev.childId);
+      if (!a || !b) return;
+      const cev = LIFE_EV.get(ev.childId);
+      if (!cev || cev.by == null) return;
+      const cage = time - cev.by;
+      if (cage < 0 || cage > 18) return;
+      if (cev.uy != null && time >= cev.uy) return;
+      const near = ctx.dim && ctx.dim.has(p.id) && ctx.dim.has(ev.childId);
+      livingLines.appendChild(el('line', {
+        x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1),
+        stroke: th.chalk3, 'stroke-width': near ? 0.9 : 0.6,
+        opacity: ((near ? 0.5 : 0.16) * (1 - cage / 18) + (near ? 0.1 : 0.03)).toFixed(3)
+      }));
+    });
+  }
+
   const linked = new Set();
-  alive.forEach(p => {
+  shown.forEach(p => {
     const sid = SPOUSE[p.id];
-    if (!sid || p.id > sid || linked.has(p.id)) return;
-    const s = get(sid);
-    if (!s || !personAlive(s, time)) return;
+    if (!sid || linked.has(p.id) || linked.has(sid)) return;
     const uy = yr(p.u);
     if (!uy || time < uy) return;
     const a = pos.get(p.id), b = pos.get(sid);
     if (!a || !b) return;
     linked.add(p.id); linked.add(sid);
-    gLines.appendChild(el('line', {
+    livingLines.appendChild(el('line', {
       x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1),
-      stroke: '#C9A44E', 'stroke-width': 1.4, opacity: 0.75, 'stroke-dasharray': '3 2'
+      stroke: th.gold, 'stroke-width': 1.1, opacity: 0.6, 'stroke-dasharray': '3 2'
     }));
   });
+}
 
-  alive.forEach(p => {
-    const xy = pos.get(p.id);
-    if (!xy) return;
-    const [x, y] = xy;
-    const by = yr(p.b);
-    const age = by ? time - by : null;
-    const r = Math.min(5, Math.max(2.2, age != null ? 2.2 + Math.min(age, 50) * 0.04 : 3));
-    const fill = p.s === 'F' ? '#C0605A' : '#6E9CBF';
-    const c = el('circle', {
-      cx: x.toFixed(1), cy: y.toFixed(1), r: r.toFixed(2),
-      fill, 'fill-opacity': 0.88, stroke: dotStroke, 'stroke-width': 0.7, 'data-id': p.id
+function updateGraves(time, th, lod, scale) {
+  const active = new Set();
+  const size = 7 * scale;
+  if (lod > 0) {
+    ALL.forEach(p => {
+      const ev = LIFE_EV.get(p.id);
+      if (!ev || !ev.certain || ev.dy == null || time < ev.dy) return;
+      const pl = ev.grave;
+      if (!pl || pl[2] == null) return;
+      active.add(p.id);
+      let u = graveNodes.get(p.id);
+      if (!u) {
+        u = el('use', { 'pointer-events': 'none' });
+        u.setAttribute('href', '#sym-cross');
+        const [gx, gy] = prj(pl[2], pl[3]);
+        const a = p.id * 2.39996, rr = 3.5 + (p.id % 4) * 2.4;
+        u.dataset.gx = gx + Math.cos(a) * rr;
+        u.dataset.gy = gy + Math.sin(a) * rr;
+        livingGraves.appendChild(u);
+        graveNodes.set(p.id, u);
+      }
+      sa(u, 'width', size.toFixed(2));
+      sa(u, 'height', size.toFixed(2));
+      sa(u, 'x', (+u.dataset.gx - size / 2).toFixed(2));
+      sa(u, 'y', (+u.dataset.gy - size / 2).toFixed(2));
+      scol(u, th.chalk3);
+      sa(u, 'opacity', (0.2 * Math.min(1, (time - ev.dy) / DEATH_FADE)).toFixed(3));
     });
-    if (SEL === p.id) { c.setAttribute('stroke', '#E8E2D5'); c.setAttribute('stroke-width', '1.6'); }
-    c.style.cursor = 'pointer';
-    gDots.appendChild(c);
-    if (age != null && age < 80) {
-      const tx = el('text', {
-        x: (x + r + 2).toFixed(1), y: (y + 3).toFixed(1), fill: dotStroke,
-        'font-family': 'IBM Plex Mono, monospace', 'font-size': 7, 'pointer-events': 'none', opacity: 0.7
-      });
-      tx.textContent = p.n.split(' ')[0].slice(0, 8);
-      gDots.appendChild(tx);
-    }
+  }
+  graveNodes.forEach((u, id) => {
+    if (!active.has(id)) { u.remove(); graveNodes.delete(id); }
+  });
+}
+
+let tickerSig = '';
+const tickerBox = document.getElementById('life-ticker');
+
+function eventPlace(p, ev, kind) {
+  if (kind === 'born') return p.bp?.[0];
+  if (kind === 'wed' || kind === 'move') return p.up?.[0];
+  if (kind === 'died') return (p.dp || p.up || p.bp)?.[0];
+  if (kind === 'kid' && ev.childId != null) return get(ev.childId)?.bp?.[0];
+  return null;
+}
+
+function hideLifeTicker() {
+  if (!tickerBox) return;
+  tickerBox.classList.remove('on');
+  tickerBox.textContent = '';
+  tickerSig = '';
+}
+
+function updateLifeTicker(time) {
+  if (!tickerBox) return;
+  const rows = [];
+  ALL.forEach(p => {
+    const ev = LIFE_EV.get(p.id);
+    if (!ev || !p.bp) return;
+    const add = (y, kind) => {
+      if (y != null && y <= time && y > time - TICKER_YRS) rows.push({ id: p.id, y, kind });
+    };
+    add(ev.by, 'born');
+    add(ev.uy, 'wed');
+    add(ev.moveEnd, 'move');
+    add(ev.kidY, 'kid');
+    if (ev.certain) add(ev.dy, 'died');
+  });
+  rows.sort((a, b) => b.y - a.y || a.id - b.id);
+  const top = rows.slice(0, 4);
+  const sig = L + '|' + top.map(r => `${r.id}${r.kind}${r.y}`).join(',');
+  if (sig !== tickerSig) {
+    tickerSig = sig;
+    tickerBox.textContent = '';
+    top.forEach(r => {
+      const p = get(r.id);
+      const ev = LIFE_EV.get(r.id);
+      const b = document.createElement('button');
+      b.className = 'ev-' + r.kind;
+      b.dataset.y = r.y;
+      const verb = t(r.kind === 'born' ? 'evBorn' : r.kind === 'wed' ? 'evWed'
+        : r.kind === 'move' ? 'evMove' : r.kind === 'kid' ? 'evKid' : 'evDied');
+      const place = eventPlace(p, ev, r.kind);
+      const gv = (p.g || '').replace(/["()]/g, '').split(/[ \-]/)[0] || '';
+      b.innerHTML = `<span class="ty">${r.y}</span> ${verb} · <b>${gv ? gv + ' ' : ''}${p.n}</b>` +
+        (place ? ` · ${place}` : '');
+      b.onclick = () => select(r.id);
+      tickerBox.appendChild(b);
+    });
+  }
+  Array.from(tickerBox.children).forEach(b => {
+    const since = time - (+b.dataset.y);
+    b.style.opacity = Math.max(0.3, 1 - since / TICKER_YRS).toFixed(2);
+  });
+  tickerBox.classList.toggle('on', top.length > 0);
+}
+
+function resetLivingNodes() {
+  livingNodes.forEach(n => n.g.remove());
+  livingNodes.clear();
+}
+
+function setLivingStyle(v) {
+  if (LIVING_STYLE === v) return;
+  LIVING_STYLE = v;
+  localStorage.setItem('boillet-living-style', v);
+  resetLivingNodes();
+  drawMapChips();
+  drawMapLegend();
+  drawMap();
+}
+
+function updateLivingLayer() {
+  if (!mapLiving) { hideLifeTicker(); return; }
+  ensureLivingDefs();
+  ensureLivingGroups();
+  if (livingG.parentNode !== mapG) mapG.appendChild(livingG);
+
+  const time = mapTime;
+  const th = livingTheme();
+  const lod = currentLod();
+  livingLod = lod;
+  livingK = zpMap.k;
+  const offMap = buildLivingOffsets(time);
+  const shown = ALL.filter(p => livingRenderable(p, time));
+  const pos = new Map();
+  shown.forEach(p => {
+    const xy = livingXY(p, time, offMap);
+    if (xy) pos.set(p.id, xy);
   });
 
-  gl.appendChild(gLines);
-  gl.appendChild(gDots);
-  mapG.appendChild(gl);
+  let dim = null;
+  if (SEL != null && pos.has(SEL)) {
+    dim = new Set([SEL, SPOUSE[SEL], SEL >> 1, SEL * 2, SEL * 2 + 1].filter(v => v));
+  }
+
+  /* labels are annotations, not map objects: keep them a constant size on screen */
+  const labelScale = mapFitK > 0 ? Math.min(1, mapFitK / zpMap.k) : 1;
+  const ctx = { time, offMap, pos, th, lod, dim, labelScale };
+  drawLivingLines(shown, ctx);
+  shown.forEach(p => { if (pos.has(p.id)) updateLivingNode(p, ctx); });
+  livingNodes.forEach((n, id) => {
+    if (!pos.has(id)) { n.g.remove(); livingNodes.delete(id); }
+  });
+  updateGraves(time, th, lod, labelScale);
+  updateLifeTicker(time);
 }
 
 function renderPersonCards() {
@@ -2363,7 +2906,7 @@ function drawMap() {
     mapG.appendChild(gp);
   }
 
-  if (mapLiving) updateLivingLayer();
+  updateLivingLayer();
   renderPersonCards();
   updateHistStream();
   const mi = document.getElementById('mapcount');
@@ -2432,6 +2975,7 @@ function fitMapCore() {
   const w = Math.abs(x1-x0) + 40, h = Math.abs(y1-y0) + 40;
   const s = Math.min(st.width/(MW+16), st.height/(MH+16));
   const k = Math.min(st.width/(w*s), st.height/(h*s)) * 0.96;
+  mapFitK = k;
   zpMap.focus((x0+x1)/2, (y0+y1)/2, k);
   syncMapOverlay(zpMap);
 }
@@ -2473,6 +3017,15 @@ function drawMapChips() {
   div.className = 'chip-div';
   div.setAttribute('aria-hidden', 'true');
   filters.appendChild(div);
+  if (mapLiving) {
+    [['medallion', t('livMedallion')], ['silhouette', t('livSilhouette')]].forEach(([k, lab]) => {
+      mk(filters, lab, LIVING_STYLE === k, () => setLivingStyle(k), t('livStyleHint'));
+    });
+    const div2 = document.createElement('span');
+    div2.className = 'chip-div';
+    div2.setAttribute('aria-hidden', 'true');
+    filters.appendChild(div2);
+  }
   mk(filters, t('cards'), mapShowCards, () => {
     mapShowCards = !mapShowCards;
     drawMapChips(); drawMap();
@@ -2679,7 +3232,7 @@ function syncMapFrame() {
   slEl.value = yf;
   if (yf !== mapYearFloor) { mapYearFloor = yf; drawMap(); }
   else {
-    if (mapLiving) updateLivingLayer();
+    updateLivingLayer();
     renderPersonCards();
     updateHistStream();
   }
@@ -2704,9 +3257,17 @@ function drawMapLegend() {
     `<div class="t">${t('mapLeg')}</div><div class="ramp" style="background:${rampCss(ERA)}"></div>` +
     `<div class="rl"><span>${YMIN}</span><span>${YMAX}</span></div>`;
   if (mapLiving) {
+    const cross = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true">` +
+      `<use href="#sym-cross" width="12" height="12" x="0" y="0" style="color:var(--chalk2)"></use></svg>`;
     h += `<div class="t" style="margin-top:8px">${t('living')}</div>` +
+      `<div><i class="leg-ring"></i>${t('livRingSure')}</div>` +
+      `<div><i class="leg-ring est"></i>${t('livRingEst')}</div>` +
+      `<div><i class="leg-ring band"></i>${t('livBand')}</div>` +
+      `<div><i style="background:var(--weld)"></i>${t('livSigil')}</div>` +
+      `<div>${cross}${t('livCross')}</div>` +
       `<div><i class="leg-curve"></i>${t('livingMig')}</div>` +
-      `<div><i class="leg-dash"></i>${t('livingUnion')}</div>`;
+      `<div><i class="leg-dash"></i>${t('livingUnion')}</div>` +
+      `<div><i class="leg-fil"></i>${t('livKin')}</div>`;
   }
   h +=
     `<div class="t" style="margin-top:8px">${t('histLeg')}</div>` +
@@ -3082,6 +3643,7 @@ window.addEventListener('resize', () => {
 });
 
 /* ══════════ boot ══════════ */
+ensureLivingDefs();
 applyTheme();
 setYear(YMAX);
 setLang('fr');
