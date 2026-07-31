@@ -354,17 +354,15 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 .life-ticker button.ev-move{border-left-color:var(--woad)}
 
 .tl-player{
-  position:absolute;left:10px;right:10px;bottom:10px;z-index:25;
-  background:var(--ink1);border:1px solid var(--rule);border-radius:6px;
-  box-shadow:var(--shadow);padding:8px 10px 7px;
+  flex:none;padding:8px 10px 7px;border-top:1px solid var(--rule);
 }
 .tl-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .tl-row button{
+  display:inline-flex;align-items:center;justify-content:center;
   font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--rule2);
-  border-radius:3px;color:var(--chalk2);min-width:28px;
+  border-radius:3px;color:var(--chalk2);min-width:36px;line-height:1;
 }
 .tl-row button:hover{color:var(--chalk);border-color:var(--woad)}
-.tl-year{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--chalk);min-width:44px;text-align:center}
 .tl-speed{display:flex;align-items:center;gap:4px;margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--chalk3)}
 .tl-speed select{font-family:var(--mono);font-size:10px;background:var(--ink2);color:var(--chalk);border:1px solid var(--rule);border-radius:3px;padding:2px 4px}
 .tl-player input[type=range]{width:100%;accent-color:var(--woad);margin:0}
@@ -427,7 +425,6 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .sheet.on{transform:translateY(0)}
   .grab{display:none}
   .legend{max-width:250px;bottom:16px}
-  .tl-player{left:10px;right:10px;bottom:16px}
   .tl-chart{top:10px;right:10px;width:260px;height:min(420px,calc(100% - 20px))}
   .hist-viewport{height:auto;flex:1}
   .pcard{width:140px;font-size:12px}
@@ -508,18 +505,17 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
           </div>
           <div class="hist-stream" id="hist-stream"></div>
         </div>
-      </div>
-      <div class="tl-player">
-        <div class="tl-row">
-          <button id="tl-step-b" aria-label="−10">−10</button>
-          <button id="tl-play" aria-label="Play">▶</button>
-          <button id="tl-step-f" aria-label="+10">+10</button>
-          <span class="tl-year" id="tl-year">1992</span>
-          <div class="tl-speed"><span id="tl-speed-lab"></span>
-            <select id="tl-speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select>
+        <div class="tl-player">
+          <div class="tl-row">
+            <button id="tl-step-b" aria-label="−10">−10</button>
+            <button id="tl-play" aria-label="Play">▶</button>
+            <button id="tl-step-f" aria-label="+10">+10</button>
+            <div class="tl-speed"><span id="tl-speed-lab"></span>
+              <select id="tl-speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+            </div>
           </div>
+          <input id="sl" type="range" min="1618" max="1992" value="1992" step="1">
         </div>
-        <input id="sl" type="range" min="1618" max="1992" value="1992" step="1">
       </div>
       <div class="zoomer">
         <button id="mzin" aria-label="Zoom +">+</button>
@@ -1993,9 +1989,11 @@ function closeSheet() {
   treeCard.classList.remove('on');
   SEL = null;
   selPath = null;
+  SEL_PLACE = null;
   markSel();
   if (VIEW === 'map') {
     if (mapLiving) updateLivingLayer();
+    else drawMapPlaces();
     renderPersonCards();
   }
   if (MODE === 'region') drawLegend();
@@ -2015,6 +2013,28 @@ function lineageOf(sel) {
     }
   });
   return s;
+}
+
+function lineagePlaceCounts(selPath) {
+  const out = new Map();
+  if (!selPath) return out;
+  selPath.forEach(id => {
+    const p = get(id);
+    [['b', p.bp, yr(p.b)], ['u', p.up, yr(p.u)], ['d', p.dp, yr(p.d)]].forEach(([type, pl, y]) => {
+      if (!pl || pl[2] == null || !mapLayers[type]) return;
+      if (y && y > mapTime) return;
+      const pk = pl[2].toFixed(4) + ',' + pl[3].toFixed(4);
+      const e = out.get(pk) || { count: 0, ys: [], la: pl[2], lo: pl[3] };
+      e.count++;
+      if (y) e.ys.push(y);
+      out.set(pk, e);
+    });
+  });
+  out.forEach(e => {
+    e.ys.sort((a, b) => a - b);
+    e.med = e.ys.length ? e.ys[Math.floor(e.ys.length / 2)] : null;
+  });
+  return out;
 }
 
 function personDetailHtml(id) {
@@ -2069,6 +2089,7 @@ function wireDetailActions(id, root) {
 
 function select(id) {
   if (id === SEL) { closeSheet(); return; }
+  SEL_PLACE = null;
   SEL = id;
   selPath = lineageOf(id);
   markSel();
@@ -2088,6 +2109,7 @@ function select(id) {
 
   if (VIEW === 'map') {
     if (mapLiving) updateLivingLayer();
+    else drawMapPlaces();
     renderPersonCards();
   }
   if (MODE === 'region') drawLegend();
@@ -2244,6 +2266,13 @@ mapSvg.setAttribute('viewBox', `-8 -8 ${MW+16} ${MH+16}`);
 const mapG = el('g', {}); mapSvg.appendChild(mapG);
 const mapCardsEl = document.getElementById('map-cards');
 let mapCardNodes = {};
+let mapPlacesG = null, mapLineageG = null, mapPlacesShown = 0, SEL_PLACE = null;
+let mapStaticG = null, mapMigG = null, mapStaticBuilt = false;
+const MAP_DOT = n => 2.4 + 2.5 * Math.sqrt(n);
+const MAP_DOT_OFF = idx => {
+  const a = idx * 2.39996, r = 7;
+  return [Math.cos(a) * r, Math.sin(a) * r];
+};
 
 function syncMapOverlay(S) {
   if (mapLiving && zpMap && zpMap.k !== livingK) updateLivingLayer();
@@ -2282,7 +2311,7 @@ const MAP_LAYERS = ['b', 'u', 'd', 'mig'];
 let mapLiving = false;
 let mapShowCards = true;
 let mapLayers = { b:true, u:true, d:true, mig:false };
-let mapTime = YMAX, mapYearFloor = YMAX, playing = null, playSpeed = 2, lastFrame = 0;
+let mapTime = YMAX, mapYearFloor = YMAX, playing = null, playSpeed = 1, lastFrame = 0;
 const YRS_PER_SEC = 3;
 const MIG_YRS = 4;
 const smoothT = t => t * t * (3 - 2 * t);
@@ -2933,7 +2962,7 @@ function drawLivingLines(shown, ctx) {
   });
 }
 
-function updateGraves(time, th, lod, scale) {
+function updateGraves(time, th, lod, scale, dim) {
   const active = new Set();
   const size = 7 * scale;
   if (lod > 0) {
@@ -2959,7 +2988,9 @@ function updateGraves(time, th, lod, scale) {
       sa(u, 'x', (+u.dataset.gx - size / 2).toFixed(2));
       sa(u, 'y', (+u.dataset.gy - size / 2).toFixed(2));
       scol(u, th.chalk3);
-      sa(u, 'opacity', (0.2 * Math.min(1, (time - ev.dy) / DEATH_FADE)).toFixed(3));
+      const fade = 0.2 * Math.min(1, (time - ev.dy) / DEATH_FADE);
+      const dull = dim && !dim.has(p.id) ? DIM_OP : 1;
+      sa(u, 'opacity', (fade * dull).toFixed(3));
     });
   }
   graveNodes.forEach((u, id) => {
@@ -3063,7 +3094,7 @@ function updateLivingLayer() {
     if (xy) pos.set(p.id, xy);
   });
 
-  const dim = SEL != null && pos.has(SEL) ? selPath || lineageOf(SEL) : null;
+  const dim = SEL != null ? (selPath || lineageOf(SEL)) : null;
 
   /* labels are annotations, not map objects: keep them a constant size on screen */
   const labelScale = mapFitK > 0 ? Math.min(1, mapFitK / zpMap.k) : 1;
@@ -3073,7 +3104,7 @@ function updateLivingLayer() {
   livingNodes.forEach((n, id) => {
     if (!pos.has(id)) { n.g.remove(); livingNodes.delete(id); }
   });
-  updateGraves(time, th, lod, labelScale);
+  updateGraves(time, th, lod, labelScale, dim);
   updateLifeTicker(time);
 }
 
@@ -3131,31 +3162,103 @@ function renderPersonCards() {
   syncMapOverlay(zpMap);
 }
 
-function drawMap() {
-  mapG.textContent = '';
+function mapPlaceInsert(g) {
+  if (livingG && livingG.parentNode === mapG) mapG.insertBefore(g, livingG);
+  else mapG.appendChild(g);
+}
+
+function drawMapPlaces() {
+  if (mapPlacesG) { mapPlacesG.remove(); mapPlacesG = null; }
+  if (mapLineageG) { mapLineageG.remove(); mapLineageG = null; }
+  mapPlacesShown = 0;
+  if (mapLiving) return;
+
+  const dotStroke = getComputedStyle(document.documentElement).getPropertyValue('--chalk').trim() || '#E8E2D5';
+  const lineage = selPath ? lineagePlaceCounts(selPath) : null;
+  mapPlacesG = el('g', { id: 'map-places' });
+  mapLineageG = el('g', { id: 'map-lineage', 'pointer-events': 'none' });
+
+  PLIST.forEach(pl => {
+    const pk = placeKey(pl);
+    const lin = lineage?.get(pk);
+    const ev = pl.ev.filter(e => mapLayers[e.type] && (!e.y || e.y <= mapTime));
+    const [x, y] = prj(pl.la, pl.lo);
+    const inLine = !lineage || !!lin;
+
+    if (ev.length) {
+      mapPlacesShown++;
+      const ys = ev.map(e => e.y).filter(Boolean).sort((a, b) => a - b);
+      const med = ys.length ? ys[Math.floor(ys.length / 2)] : pl.med;
+      const c = el('circle', {
+        cx: x.toFixed(1), cy: y.toFixed(1), r: MAP_DOT(ev.length).toFixed(1),
+        fill: med ? ramp(ERA, med) : '#4A5563', 'fill-opacity': inLine ? .82 : .35,
+        stroke: dotStroke, 'stroke-width': .7, opacity: inLine ? 1 : DIM_OP,
+        'data-place-key': pk
+      });
+      c.style.cursor = 'pointer';
+      c.style.transition = 'opacity .25s, fill-opacity .25s';
+      mapPlacesG.appendChild(c);
+    }
+
+    if (lin && lin.count > 0) {
+      const [ox, oy] = ev.length ? MAP_DOT_OFF(1) : [0, 0];
+      mapLineageG.appendChild(el('circle', {
+        cx: (x + ox).toFixed(1), cy: (y + oy).toFixed(1), r: MAP_DOT(lin.count).toFixed(1),
+        fill: lin.med ? ramp(ERA, lin.med) : '#6E9CBF', 'fill-opacity': .92,
+        stroke: '#6E9CBF', 'stroke-width': 1.4, opacity: 1
+      }));
+    }
+  });
+
+  mapPlaceInsert(mapPlacesG);
+  mapPlaceInsert(mapLineageG);
+}
+
+function updateMapCount(shown) {
+  const mi = document.getElementById('mapcount');
+  if (!mi) return;
+  const parts = [];
+  if (mapLiving) {
+    const n = ALL.filter(p => personAlive(p, mapTime) && p.bp && p.bp[2] != null).length;
+    parts.push(`${n} ${t('living').toLowerCase()}`);
+    if (mapShowCards) {
+      const nCards = ALL.filter(p => cardPasses(p, mapTime)).length;
+      parts.push(`${nCards} ${t('cards').toLowerCase()}`);
+    } else if (SEL) parts.push('1 ' + t('cards').toLowerCase());
+  } else if (mapShowCards) {
+    const nCards = ALL.filter(p => cardPasses(p, mapTime)).length;
+    parts.push(`${nCards} ${t('cards').toLowerCase()}`);
+  }
+  if (!mapLiving) {
+    const on = ['b','u','d'].filter(k => mapLayers[k]).map(k => t(k==='b'?'births':k==='u'?'unions':'deaths').toLowerCase());
+    if (on.length) parts.push(on.join('+'));
+    if (mapLayers.mig) parts.push(t('migr').toLowerCase());
+    parts.push(`${shown} ${t('places').toLowerCase()}`);
+  }
+  mi.textContent = parts.join(' · ') || '—';
+}
+
+function drawMapStatic() {
   const stroke = getComputedStyle(document.documentElement).getPropertyValue('--map-stroke').trim() || '#333F4D';
   const fill = getComputedStyle(document.documentElement).getPropertyValue('--map-fill').trim() || '#161E27';
   const label = getComputedStyle(document.documentElement).getPropertyValue('--map-label').trim() || '#46525F';
   const dotStroke = getComputedStyle(document.documentElement).getPropertyValue('--chalk').trim() || '#E8E2D5';
-  const gd = el('g', {});
+  mapStaticG = el('g', { id: 'map-static' });
   DATA.deps.forEach(d => {
     d.rings.forEach(r => {
       const pts = r.map(c => prj(c[1], c[0]).map(v => v.toFixed(1)).join(',')).join(' ');
-      gd.appendChild(el('polygon', { points:pts, fill, stroke, 'stroke-width':.9, 'stroke-linejoin':'round' }));
+      mapStaticG.appendChild(el('polygon', { points:pts, fill, stroke, 'stroke-width':.9, 'stroke-linejoin':'round' }));
     });
     if (DEPLAB[d.code]) {
       const [lx, ly] = prj(DEPLAB[d.code][0], DEPLAB[d.code][1]);
       const tx = el('text', { x:lx.toFixed(1), y:ly.toFixed(1), fill:label, 'text-anchor':'middle',
         'font-family':'IBM Plex Mono, monospace', 'font-size':9, 'letter-spacing':'0.14em', 'pointer-events':'none' });
-      tx.textContent = d.nom.toUpperCase(); gd.appendChild(tx);
+      tx.textContent = d.nom.toUpperCase(); mapStaticG.appendChild(tx);
     }
   });
-  mapG.appendChild(gd);
-
-  const gt = el('g', { 'pointer-events': 'none' });
   MAIN_TOWNS.forEach(([name, la, lo]) => {
     const [x, y] = prj(la, lo);
-    gt.appendChild(el('circle', {
+    mapStaticG.appendChild(el('circle', {
       cx: x.toFixed(1), cy: y.toFixed(1), r: '3.5',
       fill: 'none', stroke: dotStroke, 'stroke-width': '0.9', opacity: '0.75'
     }));
@@ -3165,69 +3268,53 @@ function drawMap() {
       'font-size': '11', 'font-weight': '600', 'pointer-events': 'none'
     });
     tx.textContent = name;
-    gt.appendChild(tx);
+    mapStaticG.appendChild(tx);
   });
-  mapG.appendChild(gt);
+  mapG.appendChild(mapStaticG);
+  mapStaticBuilt = true;
+}
 
-  if (mapLayers.mig && !mapLiving) {
-    const gm = el('g', { 'pointer-events':'none' });
-    MIG.filter(m => !m.y || m.y <= mapTime).forEach(m => {
-      const [x1,y1] = prj(m.a[2], m.a[3]), [x2,y2] = prj(m.b[2], m.b[3]);
-      const mx = (x1+x2)/2 - (y2-y1)*0.22, my = (y1+y2)/2 + (x2-x1)*0.22;
-      gm.appendChild(el('path', { d:`M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`,
-        fill:'none', stroke: ramp(ERA, m.y || 1800), 'stroke-width':.9, opacity:.55 }));
-    });
-    mapG.appendChild(gm);
-  }
+function drawMapMigrations() {
+  if (mapMigG) { mapMigG.remove(); mapMigG = null; }
+  if (!mapLayers.mig || mapLiving) return;
+  mapMigG = el('g', { id: 'map-mig', 'pointer-events': 'none' });
+  MIG.filter(m => !m.y || m.y <= mapTime).forEach(m => {
+    const [x1,y1] = prj(m.a[2], m.a[3]), [x2,y2] = prj(m.b[2], m.b[3]);
+    const mx = (x1+x2)/2 - (y2-y1)*0.22, my = (y1+y2)/2 + (x2-x1)*0.22;
+    mapMigG.appendChild(el('path', { d:`M ${x1.toFixed(1)} ${y1.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`,
+      fill:'none', stroke: ramp(ERA, m.y || 1800), 'stroke-width':.9, opacity:.55 }));
+  });
+  mapPlaceInsert(mapMigG);
+}
 
+function refreshMapTime() {
+  drawMapMigrations();
   let shown = 0;
   if (!mapLiving) {
-    const gp = el('g', {});
-    PLIST.forEach(pl => {
-      const ev = pl.ev.filter(e => mapLayers[e.type] && (!e.y || e.y <= mapTime));
-      if (!ev.length) return;
-      shown++;
-      const ys = ev.map(e => e.y).filter(Boolean).sort((a,b)=>a-b);
-      const med = ys.length ? ys[Math.floor(ys.length/2)] : pl.med;
-      const [x, y] = prj(pl.la, pl.lo);
-      const r = 2.4 + 2.5*Math.sqrt(ev.length);
-      const c = el('circle', { cx:x.toFixed(1), cy:y.toFixed(1), r:r.toFixed(1),
-        fill: med ? ramp(ERA, med) : '#4A5563', 'fill-opacity':.82, stroke:dotStroke, 'stroke-width':.7,
-        'data-place-key': placeKey(pl) });
-      c.style.cursor = 'pointer';
-      gp.appendChild(c);
-    });
-    mapG.appendChild(gp);
+    drawMapPlaces();
+    shown = mapPlacesShown;
   }
-
   updateLivingLayer();
   renderPersonCards();
   updateHistStream();
-  const mi = document.getElementById('mapcount');
-  if (mi) {
-    const parts = [];
-    if (mapLiving) {
-      const n = ALL.filter(p => personAlive(p, mapTime) && p.bp && p.bp[2] != null).length;
-      parts.push(`${n} ${t('living').toLowerCase()}`);
-      if (mapShowCards) {
-        const nCards = ALL.filter(p => cardPasses(p, mapTime)).length;
-        parts.push(`${nCards} ${t('cards').toLowerCase()}`);
-      } else if (SEL) parts.push('1 ' + t('cards').toLowerCase());
-    } else if (mapShowCards) {
-      const nCards = ALL.filter(p => cardPasses(p, mapTime)).length;
-      parts.push(`${nCards} ${t('cards').toLowerCase()}`);
-    }
-    if (!mapLiving) {
-      const on = ['b','u','d'].filter(k => mapLayers[k]).map(k => t(k==='b'?'births':k==='u'?'unions':'deaths').toLowerCase());
-      if (on.length) parts.push(on.join('+'));
-      if (mapLayers.mig) parts.push(t('migr').toLowerCase());
-      parts.push(`${shown} ${t('places').toLowerCase()}`);
-    }
-    mi.textContent = parts.join(' · ') || '—';
-  }
+  updateMapCount(shown);
+}
+
+function drawMap() {
+  mapStaticBuilt = false;
+  mapStaticG = null;
+  mapMigG = null;
+  mapPlacesG = null;
+  mapLineageG = null;
+  mapG.textContent = '';
+  drawMapStatic();
+  refreshMapTime();
 }
 
 function showPlace(pl, ev) {
+  const pk = placeKey(pl);
+  if (pk === SEL_PLACE && sheet.classList.contains('on')) { closeSheet(); return; }
+  SEL_PLACE = pk;
   const byId = {};
   ev.forEach(e => { (byId[e.id] = byId[e.id] || []).push(e.type); });
   const tn = { b:t('born'), u:t('wed'), d:t('died') };
@@ -3490,8 +3577,10 @@ function drawHistChart() {
 }
 
 function stopPlay() {
-  if (playing) { cancelAnimationFrame(playing); playing = null; }
-  drawMapChips();
+  if (!playing) return;
+  cancelAnimationFrame(playing);
+  playing = null;
+  document.getElementById('tl-play').textContent = t('play');
 }
 
 function tickFrame(now) {
@@ -3520,12 +3609,14 @@ function stepYear(d) {
 
 function syncMapFrame() {
   const yf = Math.floor(mapTime);
-  document.getElementById('tl-year').textContent = yf;
   const histYr = document.getElementById('hist-now-yr');
   if (histYr) histYr.textContent = yf;
   slEl.value = yf;
-  if (yf !== mapYearFloor) { mapYearFloor = yf; drawMap(); }
-  else {
+  if (yf !== mapYearFloor) {
+    mapYearFloor = yf;
+    if (mapStaticBuilt) refreshMapTime();
+    else drawMap();
+  } else {
     updateLivingLayer();
     renderPersonCards();
     updateHistStream();
@@ -3537,10 +3628,10 @@ function setYear(y) {
   mapTime = Math.max(YMIN, Math.min(YMAX, +y));
   mapYearFloor = Math.floor(mapTime);
   slEl.value = mapYearFloor;
-  document.getElementById('tl-year').textContent = mapYearFloor;
   const histYr = document.getElementById('hist-now-yr');
   if (histYr) histYr.textContent = mapYearFloor;
-  drawMap();
+  if (mapStaticBuilt) refreshMapTime();
+  else drawMap();
   if (SEL != null && VIEW === 'map') {
     Object.values(mapCardNodes).forEach(c => c.classList.toggle('sel', +c.dataset.id === SEL));
   }
