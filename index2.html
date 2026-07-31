@@ -118,6 +118,24 @@ html[data-theme="light"] .legend{background:rgba(240,237,228,.95)}
 .legend i.leg-ring.band{border-color:#C9A44E}
 .legend .leg-sym{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-2px}
 .legend .ramp{height:8px;border-radius:2px;margin:3px 0 2px}
+.legend .geo-map{
+  position:relative;width:112px;margin:6px 0 4px;
+}
+.legend .geo-map svg,
+.legend .geo-map img{
+  display:block;width:112px;height:112px;border-radius:3px;
+  border:1px solid var(--rule2);
+}
+.legend .geo-map .geo-corners{
+  position:absolute;inset:0;pointer-events:none;
+  font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.06em;color:#F7F5EF;
+  text-shadow:0 0 3px rgba(0,0,0,.65),0 1px 2px rgba(0,0,0,.5);
+}
+.legend .geo-map .geo-corners span{position:absolute;line-height:1}
+.legend .geo-map .geo-corners .nw{top:2px;left:2px}
+.legend .geo-map .geo-corners .ne{top:2px;right:2px}
+.legend .geo-map .geo-corners .sw{bottom:2px;left:2px}
+.legend .geo-map .geo-corners .se{bottom:2px;right:2px}
 .legend .rl{display:flex;justify-content:space-between;color:var(--chalk3)}
 
 /* classic branch tree (index.html layout, index2 styling) */
@@ -545,9 +563,11 @@ const T = {
   fr: {
     title:'Ascendance Boillet', tree:'Arbre', map:'Carte', stats:'Chiffres',
     sub:n=>`${n} ancêtres · 1618–1968`, search:'Chercher…',
-    by_line:'Lignée', by_era:'Époque', by_life:'Longévité', by_trade:'Métier', by_zod:'Signe',
+    by_line:'Lignée', by_era:'Époque', by_life:'Longévité', by_trade:'Métier', by_gender:'Sexe', by_region:'Région',
     colour:'Couleur',
-    lineage:'Quatre lignées', era:'Année de naissance', life:'Âge au décès', trade:'Domaine de métier', zodiac:'Élément du signe',
+    lineage:'Quatre lignées', era:'Année de naissance', life:'Âge au décès', trade:'Domaine de métier',
+    gender:'Sexe', region:'Lieu de vie', male:'Homme', female:'Femme',
+    geoNW:'NO', geoNE:'NE', geoSW:'SO', geoSE:'SE',
     unknown:'inconnu', noWedge:'La largeur d’un secteur indique le nombre d’ancêtres connus derrière lui.',
     treeFan:'Éventail', treeTimeline:'Chronologie', treeClassic:'Branches',
     tlHint:'Arbre couché : une ligne de vie par personne, Frédéric à droite. Chaque trait vertical tombe à l’année de naissance de l’enfant. Tirets dorés — unions. Contours pointillés — dates estimées.',
@@ -581,9 +601,11 @@ const T = {
   en: {
     title:'The Boillet Ancestry', tree:'Tree', map:'Map', stats:'Numbers',
     sub:n=>`${n} ancestors · 1618–1968`, search:'Search…',
-    by_line:'Lineage', by_era:'Era', by_life:'Lifespan', by_trade:'Trade', by_zod:'Sign',
+    by_line:'Lineage', by_era:'Era', by_life:'Lifespan', by_trade:'Trade', by_gender:'Gender', by_region:'Region',
     colour:'Colour',
-    lineage:'Four lineages', era:'Year of birth', life:'Age at death', trade:'Kind of work', zodiac:'Element of the sign',
+    lineage:'Four lineages', era:'Year of birth', life:'Age at death', trade:'Kind of work',
+    gender:'Gender', region:'Place of life', male:'Male', female:'Female',
+    geoNW:'NW', geoNE:'NE', geoSW:'SW', geoSE:'SE',
     unknown:'unknown', noWedge:'A wedge’s width shows how many ancestors are known behind that person.',
     treeFan:'Fan', treeTimeline:'Timeline', treeClassic:'Branches',
     tlHint:'A tree on its side: one life-line per person, Frédéric at the right. Each vertical drops at the child’s year of birth. Gold dashes — unions. Dotted outlines — estimated dates.',
@@ -876,6 +898,40 @@ function ramp(stops, v) {
 }
 const ERA = [[1600,'#2E4F6B'],[1700,'#4C7F8C'],[1800,'#6E9E85'],[1880,'#C9A44E'],[1970,'#C0605A']];
 const LIFE = [[15,'#3E4A57'],[40,'#6E9CBF'],[62,'#6E9E85'],[80,'#C9A44E'],[97,'#C0605A']];
+const GENDC = { M:'#6E9CBF', F:'#C0605A' };
+const GEO_CORNERS = { sw:'#3D5A80', se:'#C0605A', nw:'#6E9E85', ne:'#C9A44E' };
+const GISORS = [49.281, 1.777];
+const GEO = (() => {
+  const lats = [], lons = [];
+  ALL.forEach(p => {
+    [p.bp, p.up, p.dp].forEach(pl => {
+      if (pl && pl[2] != null) { lats.push(pl[2]); lons.push(pl[3]); }
+    });
+  });
+  return { la0: Math.min(...lats), la1: Math.max(...lats), lo0: Math.min(...lons), lo1: Math.max(...lons) };
+})();
+function lerpRgb(a, b, t) {
+  return [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * t);
+}
+function geoNorm(lat, lon) {
+  return {
+    x: Math.max(0, Math.min(1, (lon - GEO.lo0) / (GEO.lo1 - GEO.lo0))),
+    y: Math.max(0, Math.min(1, (lat - GEO.la0) / (GEO.la1 - GEO.la0)))
+  };
+}
+function geoColor(lat, lon) {
+  if (lat == null || lon == null) return null;
+  const nx = Math.max(0, Math.min(1, (lon - GEO.lo0) / (GEO.lo1 - GEO.lo0)));
+  const ny = Math.max(0, Math.min(1, (lat - GEO.la0) / (GEO.la1 - GEO.la0)));
+  const sw = hex2rgb(GEO_CORNERS.sw), se = hex2rgb(GEO_CORNERS.se);
+  const nw = hex2rgb(GEO_CORNERS.nw), ne = hex2rgb(GEO_CORNERS.ne);
+  const bottom = lerpRgb(sw, se, nx), top = lerpRgb(nw, ne, nx);
+  return rgb2hex(lerpRgb(bottom, top, ny));
+}
+function personGeoPlace(p) {
+  for (const pl of [p.bp, p.up, p.dp]) if (pl && pl[2] != null) return pl;
+  return null;
+}
 const NONE = '#232D39';
 function shade(h, amt) {
   const c = hex2rgb(h);
@@ -889,8 +945,12 @@ function colOf(p) {
     case 'line':  return BRC[p.br] || BRC[0];
     case 'era':   return (p.b && !p.b[3]) || (p.b && p.b[0]) ? ramp(ERA, p.b[0]) : NONE;
     case 'life':  return p.a != null ? ramp(LIFE, p.a) : NONE;
-    case 'trade': return p.c ? CATC[p.c] : NONE;
-    case 'zod':   return p.z ? ELC[ZEL[p.z]] : NONE;
+    case 'trade':  return p.c ? CATC[p.c] : NONE;
+    case 'gender': return p.s ? GENDC[p.s] : NONE;
+    case 'region': {
+      const pl = personGeoPlace(p);
+      return pl ? geoColor(pl[2], pl[3]) : NONE;
+    }
   }
   return NONE;
 }
@@ -1780,6 +1840,7 @@ function closeSheet() {
     if (mapLiving) updateLivingLayer();
     renderPersonCards();
   }
+  if (MODE === 'region') drawLegend();
 }
 
 function chain(id) { const c = []; while (id >= 1) { if (has(id)) c.push(id); id = Math.floor(id/2); } return c.reverse(); }
@@ -1856,10 +1917,12 @@ function select(id) {
     if (mapLiving) updateLivingLayer();
     renderPersonCards();
   }
+  if (MODE === 'region') drawLegend();
 }
 
 /* ══════════ colour-by chips + legend ══════════ */
-const MODES = [['line','by_line'],['era','by_era'],['life','by_life'],['trade','by_trade'],['zod','by_zod']];
+const MODES = [['line','by_line'],['era','by_era'],['life','by_life'],['trade','by_trade'],['gender','by_gender'],['region','by_region']];
+const MODE_TITLE = { line:'lineage', era:'era', life:'life', trade:'trade', gender:'gender', region:'region' };
 const cbEl = document.getElementById('colorby'), lgTree = document.getElementById('lg-tree');
 
 function drawChips() {
@@ -1876,8 +1939,62 @@ function rampCss(stops) {
   const a = stops[0][0], b = stops[stops.length-1][0];
   return 'linear-gradient(90deg,' + stops.map(s => `${s[1]} ${((s[0]-a)/(b-a)*100).toFixed(0)}%`).join(',') + ')';
 }
+function geoMapDot(ctx, lat, lon, W, H, opts) {
+  opts = opts || {};
+  const g = geoNorm(lat, lon);
+  const gx = g.x * W, gy = (1 - g.y) * H;
+  const dotCol = geoColor(lat, lon);
+  const fill = opts.fill || (lum(dotCol) > 0.55 ? '#1A1F26' : '#F7F5EF');
+  const stroke = opts.stroke != null ? opts.stroke : (fill === '#F7F5EF' ? '#1A1F26' : '#F7F5EF');
+  const r = opts.r || 3.5;
+  ctx.beginPath();
+  ctx.arc(gx, gy, r, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (opts.stroke !== false) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = opts.lineWidth || 1.1;
+    ctx.stroke();
+  }
+  if (opts.label) {
+    ctx.font = opts.font || '600 8px "IBM Plex Mono", monospace';
+    ctx.fillStyle = opts.labelFill || fill;
+    ctx.fillText(opts.label, Math.min(W - 2, gx + r + 2), Math.max(9, gy - 2));
+  }
+}
+function geoLegendHtml() {
+  const W = 112, H = 112;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const nx = (x + 0.5) / W;
+      const ny = 1 - (y + 0.5) / H;
+      const lat = GEO.la0 + ny * (GEO.la1 - GEO.la0);
+      const lon = GEO.lo0 + nx * (GEO.lo1 - GEO.lo0);
+      const rgb = hex2rgb(geoColor(lat, lon));
+      const i = (y * W + x) * 4;
+      d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2]; d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  geoMapDot(ctx, GISORS[0], GISORS[1], W, H, { label: 'Gisors' });
+  if (SEL != null) {
+    const pl = personGeoPlace(get(SEL));
+    if (pl) geoMapDot(ctx, pl[2], pl[3], W, H, { r: 4.5, fill: '#6E9CBF', stroke: '#F7F5EF', lineWidth: 1.5 });
+  }
+  return `<div class="geo-map">` +
+    `<img src="${c.toDataURL()}" width="${W}" height="${H}" alt="">` +
+    `<div class="geo-corners">` +
+    `<span class="nw">${t('geoNW')}</span><span class="ne">${t('geoNE')}</span>` +
+    `<span class="sw">${t('geoSW')}</span><span class="se">${t('geoSE')}</span>` +
+    `</div></div>`;
+}
 function drawLegend() {
-  let h = `<div class="t">${t('colour')} · ${t(MODE === 'line' ? 'lineage' : MODE === 'era' ? 'era' : MODE === 'life' ? 'life' : MODE === 'trade' ? 'trade' : 'zodiac')}</div>`;
+  let h = `<div class="t">${t('colour')} · ${t(MODE_TITLE[MODE])}</div>`;
   if (MODE === 'line') {
     [4,5,6,7].forEach(b => {
       const gp = get(b);
@@ -1892,10 +2009,15 @@ function drawLegend() {
     const seen = {}; ALL.forEach(p => { if (p.c) seen[p.c] = (seen[p.c]||0)+1; });
     Object.keys(seen).sort((a,b) => seen[b]-seen[a]).forEach(c => h += swatch(CATC[c], CATN[L][c] + ' · ' + seen[c]));
     h += swatch(NONE, t('unknown'));
-  } else {
-    const el2 = { fire:L==='fr'?'Feu':'Fire', earth:L==='fr'?'Terre':'Earth', air:L==='fr'?'Air':'Air', water:L==='fr'?'Eau':'Water' };
-    Object.keys(ELC).forEach(k => h += swatch(ELC[k], el2[k]));
+  } else if (MODE === 'gender') {
+    h += swatch(GENDC.M, t('male'));
+    h += swatch(GENDC.F, t('female'));
     h += swatch(NONE, t('unknown'));
+  } else if (MODE === 'region') {
+    h += geoLegendHtml();
+    h += `<div style="margin-top:3px;color:var(--chalk3);font-size:9px;line-height:1.4">${t('region')}: ${L === 'fr' ? 'naissance, union, décès' : 'birth, marriage, death'}</div>`;
+    h += `<div style="color:var(--chalk3);font-size:9px">${GEO.lo0.toFixed(1)}°–${GEO.lo1.toFixed(1)} · ${GEO.la0.toFixed(1)}°–${GEO.la1.toFixed(1)}°</div>`;
+    h += `<div style="margin-top:3px">${swatch(NONE, t('unknown'))}</div>`;
   }
   h += `<div style="margin-top:6px;color:var(--chalk3);font-size:9px;line-height:1.45">${t(TREE_VIEW === 'fan' ? 'noWedge' : TREE_VIEW === 'timeline' ? 'tlHint' : 'classicHint')}</div>`;
   lgTree.innerHTML = h;
