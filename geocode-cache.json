@@ -1,0 +1,377 @@
+{
+  "Réalcamp|76": {
+    "la": 49.8514496,
+    "lo": 1.623919,
+    "display": "Réalcamp, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Chaumont-En-Vexin|60": {
+    "la": 49.2625682,
+    "lo": 1.8821405,
+    "display": "Chaumont-en-Vexin, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Gisors|27": {
+    "la": 49.2789504,
+    "lo": 1.777826,
+    "display": "Gisors, Les Andelys, Eure, Normandie, France métropolitaine, 27140, France"
+  },
+  "Boissy-Le-Bois|60": {
+    "la": 49.280649,
+    "lo": 1.9419497,
+    "display": "Boissy-le-Bois, La Corne-en-Vexin, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Saint-Léger-Aux-Bois|76": {
+    "la": 49.83349,
+    "lo": 1.6096,
+    "display": "Saint-Léger-aux-Bois, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Ellecourt|76": {
+    "la": 49.7973707,
+    "lo": 1.7143697,
+    "display": "Ellecourt, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Labosse|60": {
+    "la": 49.3475302,
+    "lo": 1.9019933,
+    "display": "Labosse, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60590, France"
+  },
+  "Énencourt-Le-Sec|60": {
+    "la": 49.2968038,
+    "lo": 1.92349,
+    "display": "Énencourt-le-Sec, La Corne-en-Vexin, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Beauvais|60": {
+    "la": 49.4300997,
+    "lo": 2.0823355,
+    "display": "Beauvais, Oise, Hauts-de-France, France métropolitaine, 60000, France"
+  },
+  "Dancourt|76": {
+    "la": 49.8928375,
+    "lo": 1.5464205,
+    "display": "Dancourt, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Marques|76": {
+    "la": 49.7842877,
+    "lo": 1.6904162,
+    "display": "Marques, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Blangy-Sur-Bresle|76": {
+    "la": 49.9326076,
+    "lo": 1.629493,
+    "display": "Blangy-sur-Bresle, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Villers-Sur-Auchy|60": {
+    "la": 49.4852625,
+    "lo": 1.7948144,
+    "display": "Villers-sur-Auchy, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60650, France"
+  },
+  "Thibivillers|60": {
+    "la": 49.3004951,
+    "lo": 1.8983346,
+    "display": "Thibivillers, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Flavacourt|60": {
+    "la": 49.3352177,
+    "lo": 1.8191136,
+    "display": "Flavacourt, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60590, France"
+  },
+  "Troissereux|60": {
+    "la": 49.480521,
+    "lo": 2.0448234,
+    "display": "Troissereux, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60112, France"
+  },
+  "Le Caule-Sainte-Beuve|76": {
+    "la": 49.7647173,
+    "lo": 1.5931489,
+    "display": "Le Caule-Sainte-Beuve, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Hallencourt|80": {
+    "la": 49.9928243,
+    "lo": 1.8768545,
+    "display": "Hallencourt, Abbeville, Somme, Hauts-de-France, France métropolitaine, 80490, France"
+  },
+  "Rouen|76": {
+    "la": 49.4404591,
+    "lo": 1.0939658,
+    "display": "Rouen, Seine-Maritime, Normandie, France métropolitaine, France"
+  },
+  "Vieux-Rouen-Sur-Bresle|76": {
+    "la": 49.8337053,
+    "lo": 1.7189223,
+    "display": "Vieux-Rouen-sur-Bresle, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Paris|75": {
+    "la": 48.8408006,
+    "lo": 2.2412871,
+    "display": "75, Rue de Paris, Les Princes - Marmottan, Les Princes-Marmottan, Boulogne-Billancourt, Hauts-de-Seine, Île-de-France, France métropolitaine, 92100, France"
+  },
+  "Boutencourt|60": {
+    "la": 49.3199872,
+    "lo": 1.8590972,
+    "display": "Boutencourt, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60590, France"
+  },
+  "Fresne-Léguillon|60": {
+    "la": 49.2545195,
+    "lo": 1.9824334,
+    "display": "Fresne-Léguillon, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Ferrières-En-Bray|76": {
+    "la": 49.4829543,
+    "lo": 1.7445861,
+    "display": "Ferrières-en-Bray, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76220, France"
+  },
+  "Hardivillers-En-Vexin|60": {
+    "la": 49.3096819,
+    "lo": 1.939711,
+    "display": "Hardivillers-en-Vexin, La Corne-en-Vexin, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Campneuseville|76": {
+    "la": 49.8601725,
+    "lo": 1.6567626,
+    "display": "Campneuseville, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Wanchy-Capval|76": {
+    "la": 49.8572134,
+    "lo": 1.3567423,
+    "display": "Wanchy-Capval, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76660, France"
+  },
+  "Gamaches|80": {
+    "la": 49.9855234,
+    "lo": 1.5557176,
+    "display": "Gamaches, Abbeville, Somme, Hauts-de-France, France métropolitaine, 80220, France"
+  },
+  "Nesle-Hodeng|76": {
+    "la": 49.706261,
+    "lo": 1.5049168,
+    "display": "Nesle-Hodeng, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76270, France"
+  },
+  "Lafresguimont-Saint-Martin|80": {
+    "la": 49.8186147,
+    "lo": 1.8025511,
+    "display": "Lafresguimont-Saint-Martin, Amiens, Somme, Hauts-de-France, France métropolitaine, 80430, France"
+  },
+  "Allery|80": {
+    "la": 49.9630501,
+    "lo": 1.8979861,
+    "display": "Allery, Abbeville, Somme, Hauts-de-France, France métropolitaine, 80270, France"
+  },
+  "Beaumont-Les-Nonains|60": {
+    "la": 49.3292163,
+    "lo": 2.0051034,
+    "display": "Beaumont-les-Nonains, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60390, France"
+  },
+  "Arronville|95": {
+    "la": 49.180049,
+    "lo": 2.1118399,
+    "display": "Arronville, Pontoise, Val-d'Oise, Île-de-France, France métropolitaine, 95810, France"
+  },
+  "Ernemont-La-Villette|76": {
+    "la": 49.4617902,
+    "lo": 1.6972418,
+    "display": "Ernemont-la-Villette, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76220, France"
+  },
+  "Brémontier-Merval|76": {
+    "la": 49.5024436,
+    "lo": 1.6105521,
+    "display": "Brémontier-Merval, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76220, France"
+  },
+  "Jouy-Sous-Thelle|60": {
+    "la": 49.3179858,
+    "lo": 1.9692459,
+    "display": "Jouy-sous-Thelle, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60240, France"
+  },
+  "Beaussault|76": {
+    "la": 49.6848939,
+    "lo": 1.5644154,
+    "display": "Beaussault, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76870, France"
+  },
+  "Vignacourt|80": {
+    "la": 50.0118385,
+    "lo": 2.1967768,
+    "display": "Vignacourt, Amiens, Somme, Hauts-de-France, France métropolitaine, 80650, France"
+  },
+  "Bouafles|27": {
+    "la": 49.2106605,
+    "lo": 1.385751,
+    "display": "Bouafles, Les Andelys, Eure, Normandie, France métropolitaine, 27700, France"
+  },
+  "Nullemont|76": {
+    "la": 49.7674452,
+    "lo": 1.6389664,
+    "display": "Nullemont, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Bouillancourt-En-Séry|80": {
+    "la": 49.9620776,
+    "lo": 1.6290665,
+    "display": "Bouillancourt-en-Séry, Abbeville, Somme, Hauts-de-France, France métropolitaine, 80220, France"
+  },
+  "Mesnil-Mauger|76": {
+    "la": 49.6720578,
+    "lo": 1.51798,
+    "display": "Mesnil-Mauger, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76440, France"
+  },
+  "Flamets-Frétils|76": {
+    "la": 49.7327943,
+    "lo": 1.5800032,
+    "display": "Flamets-Frétils, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76270, France"
+  },
+  "Illois|76": {
+    "la": 49.7482709,
+    "lo": 1.6516757,
+    "display": "Illois, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Abbeville|80": {
+    "la": 50.1060835,
+    "lo": 1.8337029,
+    "display": "Abbeville, Somme, Hauts-de-France, France métropolitaine, 80100, France"
+  },
+  "Monchaux-Soreng|76": {
+    "la": 49.9480308,
+    "lo": 1.5957318,
+    "display": "Monchaux-Soreng, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Haussez|76": {
+    "la": 49.5825,
+    "lo": 1.66616,
+    "display": "Haussez, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76440, France"
+  },
+  "Saint-Quentin-Des-Prés|60": {
+    "la": 49.51961,
+    "lo": 1.7534,
+    "display": "Saint-Quentin-des-Prés, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60380, France"
+  },
+  "Therdonne|60": {
+    "la": 49.4191826,
+    "lo": 2.1557142,
+    "display": "Therdonne, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60510, France"
+  },
+  "Hannaches|60": {
+    "la": 49.498219,
+    "lo": 1.8063245,
+    "display": "Hannaches, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60650, France"
+  },
+  "Buicourt|60": {
+    "la": 49.5396878,
+    "lo": 1.8187842,
+    "display": "Buicourt, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60380, France"
+  },
+  "Darnétal|76": {
+    "la": 49.4449083,
+    "lo": 1.1519145,
+    "display": "Darnétal, Rouen, Seine-Maritime, Normandie, France métropolitaine, 76160, France"
+  },
+  "Vernon|27": {
+    "la": 49.0932008,
+    "lo": 1.4857205,
+    "display": "Vernon, Les Andelys, Eure, Normandie, France métropolitaine, 27200, France"
+  },
+  "Poissy|78": {
+    "la": 48.9274192,
+    "lo": 2.0426301,
+    "display": "Poissy, Saint-Germain-en-Laye, Yvelines, Île-de-France, France métropolitaine, 78300, France"
+  },
+  "Trie-La-Ville|60": {
+    "la": 49.2889046,
+    "lo": 1.8342004,
+    "display": "Trie-la-Ville, Beauvais, Oise, Hauts-de-France, France métropolitaine, 60590, France"
+  },
+  "Pierrecourt|76": {
+    "la": 49.8966996,
+    "lo": 1.6609511,
+    "display": "Pierrecourt, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Longroy|76": {
+    "la": 49.98896,
+    "lo": 1.53568,
+    "display": "Longroy, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76260, France"
+  },
+  "Guerville|76": {
+    "la": 49.95814,
+    "lo": 1.5129,
+    "display": "Guerville, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Sainte-Beuve-En-Rivière|76": {
+    "la": 49.763803,
+    "lo": 1.5284301,
+    "display": "Sainte-Beuve-en-Rivière, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76270, France"
+  },
+  "Auvilliers|76": {
+    "la": 49.7596371,
+    "lo": 1.5765242,
+    "display": "Auvilliers, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76270, France"
+  },
+  "Saumont-La-Poterie|76": {
+    "la": 49.5778433,
+    "lo": 1.6174151,
+    "display": "Saumont-la-Poterie, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76440, France"
+  },
+  "Avesnes-Chaussoy|80": {
+    "la": 49.9019418,
+    "lo": 1.8734537,
+    "display": "Avesnes-Chaussoy, Amiens, Somme, Hauts-de-France, France métropolitaine, 80140, France"
+  },
+  "Richemont|76": {
+    "la": 49.812401,
+    "lo": 1.6410046,
+    "display": "Richemont, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Outreau|62": {
+    "la": 50.7036916,
+    "lo": 1.5845684,
+    "display": "Outreau, Boulogne-sur-Mer, Pas-de-Calais, Hauts-de-France, France métropolitaine, 62230, France"
+  },
+  "Foucaucourt-Hors-Nesle|80": {
+    "la": 49.9154486,
+    "lo": 1.7235007,
+    "display": "Foucaucourt-Hors-Nesle, Amiens, Somme, Hauts-de-France, France métropolitaine, 80140, France"
+  },
+  "Gannes|60": {
+    "la": 49.5692826,
+    "lo": 2.4224369,
+    "display": "Gannes, Clermont, Oise, Hauts-de-France, France métropolitaine, 60120, France"
+  },
+  "Sept-Meules|76": {
+    "la": 49.9552173,
+    "lo": 1.4216771,
+    "display": "Sept-Meules, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76260, France"
+  },
+  "Cuverville-Sur-Yères|76": {
+    "la": 49.9604207,
+    "lo": 1.3996963,
+    "display": "Cuverville-sur-Yères, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76260, France"
+  },
+  "Aumale|76": {
+    "la": 49.7705,
+    "lo": 1.75454,
+    "display": "Aumale, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
+  },
+  "Nesle-L'Hôpital|80": {
+    "la": 49.9061455,
+    "lo": 1.6909977,
+    "display": "Nesle-l'Hôpital, Amiens, Somme, Hauts-de-France, France métropolitaine, 80140, France"
+  },
+  "Nesle-Normandeuse|76": {
+    "la": 49.90692,
+    "lo": 1.66881,
+    "display": "Nesle-Normandeuse, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76340, France"
+  },
+  "Bailly-En-Rivière|76": {
+    "la": 49.9128713,
+    "lo": 1.3382133,
+    "display": "Bailly-en-Rivière, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76630, France"
+  },
+  "Baromesnil|76": {
+    "la": 49.9831799,
+    "lo": 1.4120357,
+    "display": "Baromesnil, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76260, France"
+  },
+  "Lignières-Châtelain|80": {
+    "la": 49.7751782,
+    "lo": 1.861903,
+    "display": "Lignières-Châtelain, Amiens, Somme, Hauts-de-France, France métropolitaine, 80290, France"
+  },
+  "Bouttencourt|80": {
+    "la": 49.9364321,
+    "lo": 1.6289629,
+    "display": "Bouttencourt, Abbeville, Somme, Hauts-de-France, France métropolitaine, 80220, France"
+  }
+}
