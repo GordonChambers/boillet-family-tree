@@ -114,6 +114,46 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
 .legend .ramp{height:8px;border-radius:2px;margin:3px 0 2px}
 .legend .rl{display:flex;justify-content:space-between;color:var(--chalk3)}
 
+/* classic branch tree (index.html layout, index2 styling) */
+.classic-wrap{display:none;position:absolute;inset:0;overflow:hidden}
+.classic-wrap.on{display:block}
+.classic-scroller{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-x pan-y}
+.classic-ruler{position:sticky;top:0;height:26px;z-index:10;background:var(--ink);border-bottom:1px solid var(--rule);width:100%}
+.classic-ruler .tick{position:absolute;top:0;height:26px;padding-left:8px;border-left:1px solid var(--rule);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.classic-ruler b{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--chalk2)}
+.classic-ruler span{font-family:var(--mono);font-size:9px;color:var(--chalk3)}
+.classic-zoom{padding:14px 48px 72px 16px;transform-origin:0 0;width:max-content}
+.branch{display:flex;align-items:center;position:relative}
+.kids{position:relative;display:flex;flex-direction:column;justify-content:center;margin-left:17px;padding-left:17px;border-left:1px solid var(--rule)}
+.kids>.branch::before{content:"";position:absolute;left:-17px;top:50%;width:17px;height:1px;background:var(--rule)}
+.stub{position:absolute;right:-17px;top:50%;width:17px;height:1px;background:var(--rule)}
+.mask{position:absolute;left:-18px;width:3px;background:var(--ink);z-index:2}
+.mask.t{top:-5000px;height:calc(5000px + 50%)}
+.mask.b{bottom:-5000px;height:calc(5000px + 50%)}
+.person-card{
+  width:212px;position:relative;background:var(--ink1);border:1px solid var(--rule);
+  border-left:3px solid var(--woad);padding:7px 24px 7px 9px;margin:3px 0;cursor:pointer;
+  text-align:left;display:block;transition:border-color .12s,background .12s,box-shadow .12s;
+}
+.person-card.unknown{border-left-color:var(--rule2);background:var(--ink2);opacity:.72}
+.person-card:hover{background:var(--ink3);border-color:var(--rule2)}
+.person-card.sel{background:var(--ink3);border-color:var(--woad);box-shadow:0 0 0 1px var(--woad)}
+.person-card .sosa{font-family:var(--mono);font-size:9.5px;font-weight:500;letter-spacing:.1em;color:var(--chalk3);display:block;line-height:1.4}
+.person-card .nm{font-size:16px;line-height:1.16;display:block;margin-top:1px}
+.person-card .nm b{font-weight:600;letter-spacing:.02em}
+.person-card.f .nm b{color:var(--madder)}
+.person-card .yr{font-family:var(--mono);font-size:10px;color:var(--chalk3);letter-spacing:.05em;display:block;margin-top:2px}
+.person-card .pl{font-size:13px;font-style:italic;color:var(--chalk2);display:block;line-height:1.2;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.person-card .toggle{
+  position:absolute;right:0;top:0;bottom:0;width:20px;border:0;border-left:1px solid var(--rule);
+  background:transparent;padding:0;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--chalk3);cursor:pointer;
+}
+.person-card .toggle:hover{background:var(--woad);color:var(--ink)}
+.branch.new>.person-card{animation:branchIn .22s ease-out}
+@keyframes branchIn{from{opacity:0;transform:translateX(-9px)}to{opacity:1;transform:none}}
+.person-card.flash{animation:cardFlash 1.1s ease-out}
+@keyframes cardFlash{0%,55%{background:var(--ink3);box-shadow:0 0 0 2px var(--weld)}100%{background:var(--ink1);box-shadow:none}}
+
 /* search */
 .search{position:relative;flex:none}
 .search input{
@@ -265,7 +305,8 @@ h2:first-of-type{margin-top:0}
 .tl-player input[type=range]{width:100%;accent-color:var(--woad);margin:0}
 
 .tl-chart{
-  position:absolute;left:10px;right:10px;bottom:78px;z-index:24;
+  position:absolute;top:10px;right:10px;left:auto;bottom:auto;z-index:24;
+  width:min(260px,calc(100% - 20px));max-height:420px;
   background:var(--ink1);border:1px solid var(--rule);border-radius:6px;
   box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
 }
@@ -282,17 +323,17 @@ h2:first-of-type{margin-top:0}
 .hist-overlay{
   position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;overflow:visible;
 }
+.hist-now-wrap{
+  position:absolute;top:50%;left:var(--hist-scale);right:8px;z-index:4;pointer-events:none;
+  transform:translateY(-50%);display:flex;align-items:center;gap:6px;
+}
 .hist-now{
-  position:absolute;top:50%;left:var(--hist-scale);right:8px;height:2px;z-index:4;pointer-events:none;
-  background:var(--woad);transform:translateY(-50%);
+  flex:1;height:2px;background:var(--woad);
   box-shadow:0 0 12px rgba(110,156,191,.45);
 }
-.hist-now::before,.hist-now::after{
-  content:"";position:absolute;top:50%;transform:translateY(-50%);
-  border-top:5px solid transparent;border-bottom:5px solid transparent;
+.hist-now-yr{
+  flex:none;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--woad);line-height:1;
 }
-.hist-now::before{left:0;border-right:6px solid var(--woad)}
-.hist-now::after{right:0;border-left:6px solid var(--woad)}
 .hist-stream{
   position:absolute;left:var(--hist-scale);right:0;top:0;height:100%;z-index:3;
 }
@@ -321,8 +362,8 @@ h2:first-of-type{margin-top:0}
   .sheet.on{transform:translateY(0)}
   .grab{display:none}
   .legend{max-width:250px;bottom:16px}
-  .tl-player{left:10px;right:280px;bottom:16px}
-  .tl-chart{left:auto;right:10px;bottom:16px;width:260px;height:calc(100% - 32px);max-height:420px}
+  .tl-player{left:10px;right:10px;bottom:16px}
+  .tl-chart{top:10px;right:10px;width:260px;height:min(420px,calc(100% - 20px))}
   .hist-viewport{height:auto;flex:1}
   .pcard{width:140px;font-size:12px}
 }
@@ -357,10 +398,17 @@ h2:first-of-type{margin-top:0}
           <div class="results" id="qr"></div>
         </div>
         <div class="chipset" id="treeview"></div>
+        <div class="chipset" id="classic-depth" style="display:none"></div>
         <div class="chipset" id="colorby"></div>
       </div>
       <svg id="fan" role="img" aria-label="Éventail généalogique"></svg>
       <svg id="timeline" role="img" aria-label="Chronologie généalogique" style="display:none"></svg>
+      <div class="classic-wrap" id="classic-wrap">
+        <div class="classic-scroller" id="classic-scroller">
+          <div class="classic-ruler" id="classic-ruler"></div>
+          <div class="classic-zoom" id="classic-zoom"><div id="classic-tree"></div></div>
+        </div>
+      </div>
       <div class="legend" id="lg-tree"></div>
       <div class="zoomer">
         <button id="zin" aria-label="Zoom +">+</button>
@@ -388,7 +436,10 @@ h2:first-of-type{margin-top:0}
         <div class="tl-chart-bar"><span id="tl-chart-lab"></span></div>
         <div class="hist-viewport">
           <svg class="hist-overlay" id="hist-overlay" aria-hidden="true"></svg>
-          <div class="hist-now" aria-hidden="true"></div>
+          <div class="hist-now-wrap" aria-hidden="true">
+            <div class="hist-now"></div>
+            <span class="hist-now-yr" id="hist-now-yr"></span>
+          </div>
           <div class="hist-stream" id="hist-stream"></div>
         </div>
       </div>
@@ -469,8 +520,10 @@ const T = {
     colour:'Couleur',
     lineage:'Quatre lignées', era:'Année de naissance', life:'Âge au décès', trade:'Domaine de métier', zodiac:'Élément du signe',
     unknown:'inconnu', noWedge:'La largeur d’un secteur indique le nombre d’ancêtres connus derrière lui.',
-    treeFan:'Éventail', treeTimeline:'Chronologie',
-    tlHint:'Comme l’arbre classique : Frédéric au centre, branches vers les ancêtres. Tirets dorés — unions.',
+    treeFan:'Éventail', treeTimeline:'Chronologie', treeClassic:'Branches',
+    tlHint:'Arbre couché : une ligne de vie par personne, Frédéric à droite. Chaque trait vertical tombe à l’année de naissance de l’enfant. Tirets dorés — unions. Contours pointillés — dates estimées.',
+    classicHint:'Arbre linéaire : Frédéric à gauche, ancêtres vers la droite. +/− pour développer.',
+    expandAll:'Tout',
     born:'Naissance', died:'Décès', wed:'Union', spouse:'Conjoint', job:'Métier', sign:'Signe', age:'Âge',
     lived:(a,f)=>`mort${f?'e':''} à ${a} ans`, sosa:'Sosa', gen:'Génération', line:'Ligne directe', showmap:'Voir sur la carte',
     close:'Fermer', about:'vers', after:'après', before:'avant',
@@ -493,8 +546,10 @@ const T = {
     colour:'Colour',
     lineage:'Four lineages', era:'Year of birth', life:'Age at death', trade:'Kind of work', zodiac:'Element of the sign',
     unknown:'unknown', noWedge:'A wedge’s width shows how many ancestors are known behind that person.',
-    treeFan:'Fan', treeTimeline:'Timeline',
-    tlHint:'Like the classic tree: Frédéric at the centre, branches to ancestors. Gold dashes — unions.',
+    treeFan:'Fan', treeTimeline:'Timeline', treeClassic:'Branches',
+    tlHint:'A tree on its side: one life-line per person, Frédéric at the right. Each vertical drops at the child’s year of birth. Gold dashes — unions. Dotted outlines — estimated dates.',
+    classicHint:'Linear tree: Frédéric on the left, ancestors to the right. +/− to expand.',
+    expandAll:'All',
     born:'Born', died:'Died', wed:'Married', spouse:'Spouse', job:'Trade', sign:'Sign', age:'Age',
     lived:(a,f)=>`died aged ${a}`, sosa:'Sosa', gen:'Generation', line:'Direct line', showmap:'Show on map',
     close:'Close', about:'c.', after:'after', before:'before',
@@ -968,25 +1023,27 @@ function lifeEnd(p) {
   if (d) return d;
   const b = yr(p.b);
   if (b && p.a != null) return b + p.a;
-  if (b) return YMAX;
   return null;
 }
 
 function drawTree() {
   if (TREE_VIEW === 'fan') drawFan();
-  else drawTimeline();
+  else if (TREE_VIEW === 'timeline') drawTimeline();
+  else drawClassic();
 }
 
 function setTreeView(v) {
   TREE_VIEW = v;
   fan.style.display = v === 'fan' ? '' : 'none';
   timeline.style.display = v === 'timeline' ? '' : 'none';
+  document.getElementById('classic-wrap').classList.toggle('on', v === 'classic');
+  document.getElementById('classic-depth').style.display = v === 'classic' ? '' : 'none';
   document.querySelectorAll('#treeview button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tv === v));
   if (VIEW === 'tree') {
     drawTree();
     drawLegend();
     if (v === 'fan' || v === 'timeline') requestAnimationFrame(fitLabels);
-    if (SEL != null) markSel();
+    if (v === 'classic' && SEL != null) markSel();
   }
 }
 
@@ -994,7 +1051,7 @@ function drawTreeViewChips() {
   const tv = document.getElementById('treeview');
   if (!tv) return;
   tv.innerHTML = '';
-  [['fan', 'treeFan'], ['timeline', 'treeTimeline']].forEach(([v, k]) => {
+  [['fan', 'treeFan'], ['timeline', 'treeTimeline'], ['classic', 'treeClassic']].forEach(([v, k]) => {
     const b = document.createElement('button');
     b.textContent = t(k);
     b.dataset.tv = v;
@@ -1110,234 +1167,490 @@ function drawFan() {
   fitLabels();
 }
 
-/* ══════════ timeline render ══════════ */
-const TL = { x0: YMIN - 8, x1: YMAX + 8, ml: 54, mt: 34, mb: 16, mr: 24, rh: 22, vgap: 3, px: 2.15 };
+/* ══════════ timeline — the pedigree as a tree lying on its side ══════════ */
+/* Rows come from an in-order walk of the Sosa tree: a person's paternal branch
+   sits above them, the maternal branch below, and everyone gets a row of their
+   own. Each subtree therefore owns one unbroken block of rows, which is what
+   keeps the connectors from crossing. The year axis puts Frédéric — the
+   youngest — hard against the right edge, so the tree terminates on him. */
+const TL = {
+  x0: YMIN - 14, x1: YMAX + 8,
+  ml: 60, mt: 46, mb: 34, mr: 196,
+  rh: 12, vgap: 6, px: 2.55,
+  genGap: 32, openSpan: 70
+};
+const TL_PITCH = TL.rh + TL.vgap;
+const TL_BLOCK = 46;   /* rows between repeats of the year scale */
 const timeline = document.getElementById('timeline');
 const tlG = el('g', {});
 timeline.appendChild(tlG);
-const zpTimeline = ZoomPan(timeline, tlG, 0.35, 8, null, (cx, cy) => tapSelectInSvg(timeline, cx, cy));
-let TL_ROWBY = {};
-let TL_LABELS = [];
+const zpTimeline = ZoomPan(timeline, tlG, 0.5, 40, null, (cx, cy) => tapSelectInSvg(timeline, cx, cy));
+let TL_ROW = {}, TL_SPAN = {}, TL_IDS = [], TL_RULES = [], TL_W = 0, TL_H = 0, tlFitted = false;
 
 function tlYearX(y) { return TL.ml + (y - TL.x0) * TL.px; }
 
-function tlBranch(id) {
-  if (!has(id)) return null;
-  const pars = [id * 2, id * 2 + 1].filter(has);
-  if (!pars.length) {
-    const h = TL.rh + TL.vgap;
-    return { h, place(y0) { TL_ROWBY[id] = { cy: y0 + TL.rh * 0.5, yTop: y0 }; } };
-  }
-  const subs = pars.map(pid => tlBranch(pid));
-  const totalH = subs.reduce((s, b) => s + b.h, 0);
-  return {
-    h: totalH,
-    place(y0) {
-      let off = y0;
-      subs.forEach(b => { b.place(off); off += b.h; });
-      TL_ROWBY[id] = { cy: y0 + totalH * 0.5, yTop: y0 + totalH * 0.5 - TL.rh * 0.5 };
+function tlInk() {
+  return THEME === 'light'
+    ? { grid:'#DCD6C7', gridC:'#C2BAA7', axis:'#6B7280', rail:'#6C7885', twig:'#A79F8D',
+        union:'#A8822F', name:'#333B45', faint:'#7A8290', edge:'#F7F5EF', band:'#EEEAE0',
+        join:'#2C333C', sel:'#1A1F26' }
+    : { grid:'#1E2831', gridC:'#2E3B49', axis:'#6E7885', rail:'#93A2B3', twig:'#4A5563',
+        union:'#C9A44E', name:'#C8D0D9', faint:'#828B97', edge:'#0F141A', band:'#141B23',
+        join:'#E2E7EE', sel:'#E8E2D5' };
+}
+
+function tlLayoutRows() {
+  TL_ROW = {};
+  TL_IDS = [];
+  TL_RULES = [TL.mt - 16];
+  let n = 0, y = TL.mt;
+  (function walk(id) {
+    if (!has(id)) return;
+    walk(id * 2);
+    /* the chart runs many screens deep, so leave gutters for a repeated scale */
+    if (n && n % TL_BLOCK === 0) { TL_RULES.push(y + 15); y += 28; }
+    TL_ROW[id] = { cy: y + TL.rh / 2, yTop: y, row: n++ };
+    TL_IDS.push(id);
+    y += TL_PITCH;
+    walk(id * 2 + 1);
+  })(1);
+  TL_RULES.push(y + 18);
+  return y + TL.mb;
+}
+
+/* A third of the tree has no birth record, and a person with no position at all
+   would tear a hole in the shape. Fall back to their marriage or death, then to
+   a 32-year step from the nearest relative who does have a year. Anything
+   estimated is drawn hollow so it never passes for a documented life. */
+function tlEstimateBirths() {
+  const est = {};
+  TL_IDS.forEach(id => {
+    const p = get(id);
+    let b = lifeStart(p);
+    if (b == null) {
+      const uy = yr(p.u), dy = yr(p.d);
+      if (uy) b = uy - 26;
+      else if (dy) b = dy - 58;
     }
-  };
+    if (b != null) est[id] = b;
+  });
+  const bySosa = TL_IDS.slice().sort((a, b) => a - b);
+  bySosa.forEach(id => {
+    if (est[id] != null) return;
+    const kid = id >> 1;
+    if (kid >= 1 && est[kid] != null) est[id] = est[kid] - TL.genGap;
+  });
+  bySosa.reverse().forEach(id => {
+    if (est[id] != null) return;
+    const seen = [id * 2, id * 2 + 1].filter(has).map(p => est[p]).filter(v => v != null);
+    if (seen.length) est[id] = Math.round(seen.reduce((s, v) => s + v, 0) / seen.length) + TL.genGap;
+  });
+  TL_IDS.forEach(id => { if (est[id] == null) est[id] = YMIN; });
+  return est;
 }
 
-function tlLayoutTree() {
-  TL_ROWBY = {};
-  const root = tlBranch(1);
-  if (root) root.place(TL.mt);
-  return TL.mt + (root ? root.h : 0) + TL.mb;
+function tlComputeSpans() {
+  const est = tlEstimateBirths();
+  TL_SPAN = {};
+  TL_IDS.forEach(id => {
+    const p = get(id);
+    const b = lifeStart(p), d = lifeEnd(p);
+    const birth = b != null ? b : est[id];
+    const end = Math.max(birth, d != null ? d : Math.min(YMAX, birth + TL.openSpan));
+    TL_SPAN[id] = {
+      birth, end, x0: tlYearX(birth), x1: tlYearX(end),
+      solidStart: b != null, solidEnd: d != null
+    };
+  });
 }
 
-function tlBarEdge(id) {
-  const p = get(id), row = TL_ROWBY[id];
-  if (!row) return TL.ml + 6;
-  const y0 = lifeStart(p), y1 = lifeEnd(p);
-  if (y0 != null) return tlYearX(y0);
-  if (y1 != null) return tlYearX(y1);
-  return TL.ml + 6;
-}
-
-function tlDrawPedigree(links, id) {
-  const pars = [id * 2, id * 2 + 1].filter(has).filter(pid => TL_ROWBY[pid]);
-  if (!pars.length) return;
-  const child = TL_ROWBY[id];
-  const bx = lifeStart(get(id));
-  const xRail = bx != null ? tlYearX(bx) : tlBarEdge(id);
-  const parCs = pars.map(pid => TL_ROWBY[pid].cy);
-  const y0 = Math.min(child.cy, ...parCs), y1 = Math.max(child.cy, ...parCs);
-  links.appendChild(el('line', {
-    x1: xRail, y1: y0, x2: xRail, y2: y1,
-    stroke: '#5A6572', 'stroke-width': 1.1, opacity: 0.68
-  }));
-  const stub = (pid) => {
-    const row = TL_ROWBY[pid], edge = tlBarEdge(pid);
-    if (Math.abs(edge - xRail) < 1.5) return;
-    links.appendChild(el('line', {
-      x1: Math.min(edge, xRail), y1: row.cy, x2: Math.max(edge, xRail), y2: row.cy,
-      stroke: '#5A6572', 'stroke-width': 1.1, opacity: 0.68
+/* One vertical per couple, dropped at the year their child was born and running
+   from the father's row to the mother's; the child's row lies between the two,
+   so the line meets all three life-lines at once. */
+function tlDrawLinks(g, joins, ink) {
+  TL_IDS.forEach(id => {
+    const par = [id * 2, id * 2 + 1].filter(has);
+    if (!par.length) return;
+    const x = TL_SPAN[id].x0, gen = get(id).G;
+    const ys = par.map(pid => TL_ROW[pid].cy).concat(TL_ROW[id].cy);
+    g.appendChild(el('line', {
+      x1: x, y1: Math.min(...ys), x2: x, y2: Math.max(...ys), stroke: ink.rail,
+      'stroke-width': Math.max(0.9, 2.1 - (gen - 1) * 0.1),
+      opacity: Math.max(0.55, 0.95 - (gen - 1) * 0.04), 'stroke-linecap': 'round'
     }));
-  };
-  stub(id);
-  pars.forEach(stub);
-  pars.forEach(pid => tlDrawPedigree(links, pid));
+    /* the bars would otherwise swallow the junctions, so pin each one */
+    [id].concat(par).forEach(pid => {
+      joins.appendChild(el('circle', {
+        cx: x, cy: TL_ROW[pid].cy, r: pid === id ? 2.3 : 1.8,
+        fill: ink.join, opacity: 0.95, 'pointer-events': 'none'
+      }));
+    });
+    par.forEach(pid => {
+      const ps = TL_SPAN[pid];
+      if (ps.x0 <= x + 0.5 && ps.x1 >= x - 0.5) return;
+      const from = ps.x1 < x ? ps.x1 : ps.x0;
+      g.appendChild(el('line', {
+        x1: Math.min(from, x), y1: TL_ROW[pid].cy, x2: Math.max(from, x), y2: TL_ROW[pid].cy,
+        stroke: ink.twig, 'stroke-width': 0.8, opacity: 0.75, 'stroke-dasharray': '2 2.5'
+      }));
+    });
+  });
 }
 
 function tlTextW(text, fs) { return Math.max(8, text.length * fs * 0.54); }
 
-function tlLabelBox(x, y, text, anchor, fs) {
-  const w = tlTextW(text, fs), h = fs + 5;
-  let x0 = anchor === 'end' ? x - w : x;
-  if (anchor === 'middle') x0 = x - w * 0.5;
-  return { x0, x1: x0 + w, y0: y - fs, y1: y + 5 };
-}
-
-function tlHits(a, b, pad) {
-  pad = pad || 3;
-  return a.x0 < b.x1 + pad && a.x1 > b.x0 - pad && a.y0 < b.y1 + pad && a.y1 > b.y0 - pad;
-}
-
-function tlPlaceName(labels, p, cy, x0, x1, w, noDates) {
+/* With a row per person a name only has to clear that row's own bar: it goes
+   inside when the life is long enough to hold it, otherwise just past the end. */
+function tlPlaceName(labels, id, ink) {
+  const p = get(id), sp = TL_SPAN[id], row = TL_ROW[id];
   const gv = firstGiven(p);
-  const nm = p.n + (gv ? ' ' + gv : '');
-  const nick = gv ? p.n + ' ' + gv.split(/[\s\-]/)[0] : p.n;
-  const fs = 10.5;
-  const ink = SEL === p.id ? '#E8E2D5' : noDates ? '#8A939E' : '#C8D0D9';
-  const cands = [];
-  if (w > 44 && x0 != null) {
-    const maxIn = Math.max(24, w - 10);
-    const full = noDates ? [nm + ' · ?', nick + ' · ?', p.n + ' · ?'] : [nm, nick, p.n];
-    for (const v of full) {
-      if (tlTextW(v, fs) <= maxIn) { cands.push({ x: x0 + 5, y: cy + 4, anchor: 'start', text: v, fs, ink }); break; }
-    }
-    if (!cands.length) cands.push({ x: x0 + 5, y: cy + 4, anchor: 'start', text: full[full.length - 1], fs, ink, max: maxIn, vars: full });
+  const full = p.n + (gv ? ' ' + gv : '');
+  const est = !sp.solidStart && !sp.solidEnd;
+  const years = (sp.solidStart ? sp.birth : '?') + '–' + (sp.solidEnd ? sp.end : '?');
+  const fs = 9.8, barW = sp.x1 - sp.x0;
+  let x, anchor, max, vars, inside = false;
+  if (barW > tlTextW(full, fs) + 12) {
+    x = sp.x0 + 7; anchor = 'start'; max = barW - 13; inside = true;
+    vars = [full, p.n];
+  } else if (sp.x1 + 7 + tlTextW(full, fs) < TL_W - 4) {
+    x = sp.x1 + 7; anchor = 'start'; max = TL_W - 4 - x;
+    vars = [full + '  ' + years, full, p.n];
+  } else {
+    x = sp.x0 - 7; anchor = 'end'; max = x - TL.ml - 2;
+    vars = [full, p.n];
   }
-  if (x1 != null) {
-    cands.push({ x: x1 + 6, y: cy + 4, anchor: 'start', text: nick, fs: 9.5, ink: '#A5AEB9' });
-    cands.push({ x: x1 + 6, y: cy - 7, anchor: 'start', text: nick, fs: 9, ink: '#A5AEB9' });
-    cands.push({ x: x1 + 6, y: cy + 14, anchor: 'start', text: nick, fs: 9, ink: '#A5AEB9' });
-  }
-  if (x0 != null) cands.push({ x: x0 - 5, y: cy + 4, anchor: 'end', text: nick, fs: 9.5, ink: '#A5AEB9' });
-  cands.push({ x: TL.ml + 4, y: cy + 4, anchor: 'start', text: nick, fs: 9.5, ink: '#8A939E' });
-  for (const c of cands) {
-    const box = tlLabelBox(c.x, c.y, c.text, c.anchor, c.fs);
-    if (!TL_LABELS.some(b => tlHits(box, b))) {
-      TL_LABELS.push(box);
-      const tx = el('text', {
-        x: c.x, y: c.y, 'text-anchor': c.anchor === 'end' ? 'end' : 'start',
-        fill: c.ink || ink, 'font-family': 'EB Garamond, serif', 'font-size': c.fs, 'font-weight': 500,
-        'font-style': noDates ? 'italic' : 'normal', class: 'tl-name', 'data-id': p.id
-      });
-      labels.appendChild(tx);
-      if (c.max) PENDING.push({ node: tx, max: c.max, vars: c.vars });
-      else tx.textContent = c.text;
-      return;
-    }
-  }
+  const bar = shade(colOf(p), (p.G - 6.5) * 0.024);
+  const rest = inside && !est ? (lum(bar) > 0.55 ? '#0F141A' : '#F2EEE4') : est ? ink.faint : ink.name;
   const tx = el('text', {
-    x: TL.ml + 4, y: cy + 4 - TL_LABELS.length * 0.4, 'text-anchor': 'start',
-    fill: ink, 'font-family': 'EB Garamond, serif', 'font-size': 9, 'font-weight': 500,
-    class: 'tl-name', 'data-id': p.id
+    x, y: row.cy + fs * 0.35, 'text-anchor': anchor,
+    fill: SEL === id ? ink.sel : rest,
+    'font-family': 'EB Garamond, serif', 'font-size': fs, 'font-weight': 500,
+    'font-style': est ? 'italic' : 'normal', class: 'tl-name', 'data-id': id
   });
-  tx.textContent = nick;
+  tx.dataset.rest = rest;
+  tx.textContent = vars[vars.length - 1];
   labels.appendChild(tx);
-  TL_LABELS.push(tlLabelBox(TL.ml + 4, cy + 4, nick, 'start', 9));
+  PENDING.push({ node: tx, max, vars });
 }
 
 function drawTimeline() {
   tlG.textContent = '';
-  TL_LABELS = [];
   PENDING = [];
-  const H = tlLayoutTree();
-  const ids = Object.keys(TL_ROWBY).map(Number);
-  const W = TL.ml + (TL.x1 - TL.x0) * TL.px + TL.mr;
-  timeline.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const ink = tlInk();
+  TL_H = tlLayoutRows();
+  TL_W = TL.ml + (TL.x1 - TL.x0) * TL.px + TL.mr;
+  tlComputeSpans();
+  timeline.setAttribute('viewBox', `0 0 ${TL_W} ${TL_H}`);
 
-  const grid = el('g', { opacity: '.38' });
-  for (let y = Math.ceil(TL.x0 / 20) * 20; y <= TL.x1; y += 20) {
-    const x = tlYearX(y);
-    grid.appendChild(el('line', {
-      x1: x, y1: TL.mt - 6, x2: x, y2: H - TL.mb,
-      stroke: '#2A3542', 'stroke-width': y % 100 === 0 ? .85 : .45
+  const bands = el('g', { 'pointer-events': 'none' });
+  TL_IDS.forEach(id => {
+    const r = TL_ROW[id];
+    if (r.row % 2) return;
+    bands.appendChild(el('rect', {
+      x: TL.ml - 8, y: r.yTop - TL.vgap / 2, width: TL_W - TL.ml + 6, height: TL_PITCH, fill: ink.band
     }));
-    if (y % 50 === 0) {
+  });
+  tlG.appendChild(bands);
+
+  const grid = el('g', { 'pointer-events': 'none' });
+  const gTop = TL.mt - 12, gBot = TL_H - TL.mb + 8;
+  for (let y = Math.ceil(TL.x0 / 10) * 10; y <= TL.x1; y += 10) {
+    const century = y % 100 === 0;
+    grid.appendChild(el('line', {
+      x1: tlYearX(y), y1: gTop, x2: tlYearX(y), y2: gBot,
+      stroke: century ? ink.gridC : ink.grid, 'stroke-width': century ? 0.9 : 0.5
+    }));
+  }
+  TL_RULES.forEach(ly => {
+    for (let y = Math.ceil(TL.x0 / 50) * 50; y <= TL.x1; y += 50) {
       const tx = el('text', {
-        x, y: TL.mt - 12, 'text-anchor': 'middle', fill: '#6E7885',
-        'font-family': 'IBM Plex Mono, monospace', 'font-size': 9
+        x: tlYearX(y), y: ly, 'text-anchor': 'middle', fill: ink.axis,
+        'font-family': 'IBM Plex Mono, monospace', 'font-size': 9.5
       });
       tx.textContent = y;
       grid.appendChild(tx);
     }
-  }
+  });
   tlG.appendChild(grid);
 
   const links = el('g', { 'pointer-events': 'none' });
-  const bars = el('g', {}), labels = el('g', { 'pointer-events': 'none' });
+  const bars = el('g', {});
+  const joins = el('g', { 'pointer-events': 'none' });
+  const labels = el('g', { 'pointer-events': 'none' });
   tlG.appendChild(links);
   tlG.appendChild(bars);
+  tlG.appendChild(joins);
   tlG.appendChild(labels);
 
-  tlDrawPedigree(links, 1);
-
-  const unionDone = new Set();
-  ids.forEach(id => {
-    const p = get(id);
-    const sid = SPOUSE[id];
-    if (!sid || id > sid || unionDone.has(id)) return;
-    const a = TL_ROWBY[id], b = TL_ROWBY[sid];
-    if (!a || !b) return;
-    const uy = yr(p.u) || yr(get(sid).u);
+  /* Spouses sit at opposite ends of a branch, so drawing the marriage as one
+     line would stripe the whole chart. A tick on each of their rows says the
+     same thing — the birth rail already shows which two they are. */
+  TL_IDS.forEach(id => {
+    const uy = yr(get(id).u);
     if (!uy) return;
-    unionDone.add(id); unionDone.add(sid);
-    links.appendChild(el('line', {
-      x1: tlYearX(uy), y1: a.cy, x2: tlYearX(uy), y2: b.cy,
-      stroke: '#C9A44E', 'stroke-width': 1.35, opacity: 0.82, 'stroke-dasharray': '4 3'
+    const x = tlYearX(uy), row = TL_ROW[id];
+    joins.appendChild(el('line', {
+      x1: x, y1: row.yTop - 2.5, x2: x, y2: row.yTop + TL.rh + 2.5,
+      stroke: ink.union, 'stroke-width': 1.5, opacity: 0.9
     }));
   });
 
-  const barBy = new Map();
-  ids.forEach(id => {
-    const p = get(id);
-    const { cy, yTop } = TL_ROWBY[id];
-    const y0 = lifeStart(p), y1 = lifeEnd(p);
+  tlDrawLinks(links, joins, ink);
+
+  TL_IDS.forEach(id => {
+    const p = get(id), sp = TL_SPAN[id], row = TL_ROW[id];
     const c = shade(colOf(p), (p.G - 6.5) * 0.024);
-    const noDates = y0 == null && y1 == null;
-
-    const addBar = (node) => {
-      node.style.cursor = 'pointer';
-      node.setAttribute('data-id', id);
-      node.addEventListener('pointerenter', () => { node.setAttribute('stroke', '#E8E2D5'); });
-      node.addEventListener('pointerleave', () => {
-        if (SEL !== id) { node.setAttribute('stroke', '#0F141A'); node.setAttribute('stroke-width', node.tagName === 'circle' ? 1 : .6); }
-      });
-      bars.appendChild(node);
-    };
-
-    let bx0 = null, bx1 = null, bw = 0;
-    if (y0 != null) {
-      bx0 = tlYearX(y0);
-      bx1 = y1 != null ? tlYearX(y1) : tlYearX(TL.x1);
-      bw = Math.max(2.5, bx1 - bx0);
-      const open = !yr(p.d);
-      const rect = el('rect', {
-        x: bx0, y: yTop + 3, width: bw, height: TL.rh - 6,
-        rx: 2, fill: c, stroke: '#0F141A', 'stroke-width': .6, opacity: open ? .62 : 1
-      });
-      if (open) rect.setAttribute('stroke-dasharray', '4 3');
-      addBar(rect);
-    } else if (y1 != null) {
-      bx0 = bx1 = tlYearX(y1);
-      addBar(el('circle', { cx: bx0, cy, r: 4.5, fill: c, stroke: '#0F141A', 'stroke-width': .6 }));
-    }
-    barBy.set(id, { bx0, bx1, bw, cy, noDates });
+    const firm = sp.solidStart && sp.solidEnd;
+    const ghost = !sp.solidStart && !sp.solidEnd;
+    const rest = ghost ? c : ink.edge, restW = ghost ? 0.9 : 0.6;
+    const rect = el('rect', {
+      x: sp.x0, y: row.yTop + 1, width: Math.max(3, sp.x1 - sp.x0), height: TL.rh - 2,
+      rx: 1.5, fill: ghost ? 'none' : c, stroke: rest, 'stroke-width': restW,
+      opacity: firm ? 1 : ghost ? 0.5 : 0.7, 'data-id': id
+    });
+    if (!firm) rect.setAttribute('stroke-dasharray', '3 2.5');
+    rect.dataset.rest = rest;
+    rect.dataset.restw = restW;
+    rect.style.cursor = 'pointer';
+    rect.addEventListener('pointerenter', () => rect.setAttribute('stroke', ink.sel));
+    rect.addEventListener('pointerleave', () => {
+      if (SEL !== id) { rect.setAttribute('stroke', rest); rect.setAttribute('stroke-width', restW); }
+    });
+    bars.appendChild(rect);
   });
 
-  ids.slice().sort((a, b) => (lifeStart(get(a)) ?? 9999) - (lifeStart(get(b)) ?? 9999))
-    .forEach(id => {
-      const b = barBy.get(id);
-      tlPlaceName(labels, get(id), b.cy, b.bx0, b.bx1, b.bw, b.noDates);
-    });
+  TL_IDS.forEach(id => tlPlaceName(labels, id, ink));
+
+  /* the ring marks where the whole tree terminates */
+  if (TL_ROW[1]) {
+    labels.appendChild(el('circle', {
+      cx: TL_SPAN[1].x0, cy: TL_ROW[1].cy, r: 5, fill: 'none',
+      stroke: ink.sel, 'stroke-width': 1.2, opacity: 0.9
+    }));
+  }
 
   if (SEL) markSel();
-  requestAnimationFrame(fitLabels);
+  requestAnimationFrame(() => {
+    fitLabels();
+    if (!tlFitted && timeline.getBoundingClientRect().width) { tlFitted = true; tlFitWidth(); }
+  });
+}
+
+/* Fitting all 284 rows on screen would make every name unreadable, so "fit"
+   means the full sweep of years at a legible size, parked on the end of the
+   tree — Frédéric and the generations closest to him. */
+function tlFitWidth() {
+  const r = timeline.getBoundingClientRect();
+  if (!r.width || !TL_W || !TL_ROW[1]) return;
+  const base = Math.min(r.width / TL_W, r.height / TL_H);
+  const k = (r.width / TL_W) / base * 0.98;
+  const visible = r.height / (base * k);
+  zpTimeline.focus(TL_W / 2, Math.max(visible / 2, TL_H - visible / 2), k);
+}
+zpTimeline.reset = tlFitWidth;
+
+/* ══════════ classic branch tree (index.html layout) ══════════ */
+const classicWrap = document.getElementById('classic-wrap');
+const classicScroller = document.getElementById('classic-scroller');
+const classicZoom = document.getElementById('classic-zoom');
+const classicTree = document.getElementById('classic-tree');
+const classicRuler = document.getElementById('classic-ruler');
+const GEN_RANGE = ['1968','1930s','1900s','1870s','1840s','1810s','1780s','1750s','1720s','1690s','1660s','1620s'];
+const hasParents = id => has(id * 2) || has(id * 2 + 1);
+let classicOpen = new Set();
+let classicZoomK = 1;
+
+const zpClassic = {
+  zoom(f) { setClassicZoom(classicZoomK * f); },
+  reset() { setClassicZoom(1); classicScroller.scrollLeft = 0; classicScroller.scrollTop = 0; }
+};
+
+function setClassicZoom(z, anchor) {
+  z = Math.min(2.2, Math.max(0.35, z));
+  if (anchor) {
+    const rx = (anchor.x + classicScroller.scrollLeft) / classicZoomK;
+    const ry = (anchor.y + classicScroller.scrollTop) / classicZoomK;
+    classicZoomK = z;
+    classicZoom.style.transform = 'scale(' + z + ')';
+    classicRulerDraw();
+    classicScroller.scrollLeft = rx * z - anchor.x;
+    classicScroller.scrollTop = ry * z - anchor.y;
+  } else {
+    classicZoomK = z;
+    classicZoom.style.transform = 'scale(' + z + ')';
+    classicRulerDraw();
+  }
+}
+
+(function initClassicZoom() {
+  let d0 = 0, z0 = 1;
+  classicScroller.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY), z0 = classicZoomK;
+  }, { passive: true });
+  classicScroller.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && d0) {
+      e.preventDefault();
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      const r = classicScroller.getBoundingClientRect();
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+      setClassicZoom(z0 * d / d0, { x: mx, y: my });
+    }
+  }, { passive: false });
+  classicScroller.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const r = classicScroller.getBoundingClientRect();
+      setClassicZoom(classicZoomK * (e.deltaY < 0 ? 1.1 : 0.9), { x: e.clientX - r.left, y: e.clientY - r.top });
+    }
+  }, { passive: false });
+})();
+
+function classicExpandTo(g) {
+  classicOpen.clear();
+  ALL.forEach(p => { if (p.G < g && hasParents(p.id)) classicOpen.add(p.id); });
+  drawClassic();
+}
+
+function drawClassicDepthChips() {
+  const cd = document.getElementById('classic-depth');
+  if (!cd) return;
+  cd.innerHTML = '';
+  [[3, 'G3'], [6, 'G6'], [13, t('expandAll')]].forEach(([g, lab]) => {
+    const b = document.createElement('button');
+    b.textContent = lab;
+    b.onclick = () => classicExpandTo(g);
+    cd.appendChild(b);
+  });
+}
+
+function classicCard(id) {
+  const p = get(id);
+  const b = document.createElement('button');
+  const unknown = /^INCONNU/i.test(p.n);
+  b.className = 'person-card' + (p.s === 'F' ? ' f' : '') + (unknown ? ' unknown' : '');
+  b.dataset.id = id;
+  b.style.borderLeftColor = colOf(p);
+
+  const sosa = document.createElement('span');
+  sosa.className = 'sosa';
+  sosa.textContent = id.toLocaleString(L === 'fr' ? 'fr-FR' : 'en-GB') + ' · G' + p.G;
+  b.appendChild(sosa);
+
+  const nm = document.createElement('span');
+  nm.className = 'nm';
+  const sur = document.createElement('b');
+  sur.textContent = p.n;
+  nm.appendChild(sur);
+  if (p.g) nm.appendChild(document.createTextNode(' ' + p.g));
+  b.appendChild(nm);
+
+  const by = yr(p.b), dy = yr(p.d);
+  const dates = [by ? (L === 'fr' ? 'n. ' : 'b. ') + by : '', dy ? (L === 'fr' ? 'd. ' : 'd. ') + dy : ''].filter(Boolean).join(' · ');
+  if (dates) {
+    const yrEl = document.createElement('span');
+    yrEl.className = 'yr';
+    yrEl.textContent = dates;
+    b.appendChild(yrEl);
+  }
+  if (p.bp) {
+    const pl = document.createElement('span');
+    pl.className = 'pl';
+    pl.textContent = p.bp[0];
+    b.appendChild(pl);
+  }
+
+  b.onclick = () => gotoPerson(id);
+
+  if (hasParents(id)) {
+    const tgl = document.createElement('span');
+    tgl.className = 'toggle';
+    tgl.setAttribute('role', 'button');
+    tgl.tabIndex = 0;
+    tgl.textContent = classicOpen.has(id) ? '–' : '+';
+    const fire = e => {
+      e.stopPropagation();
+      classicOpen.has(id) ? classicOpen.delete(id) : classicOpen.add(id);
+      drawClassic();
+    };
+    tgl.onclick = fire;
+    tgl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') fire(e); };
+    b.appendChild(tgl);
+  }
+  return b;
+}
+
+function classicBranch(id, isNew) {
+  const wrap = document.createElement('div');
+  wrap.className = 'branch' + (isNew ? ' new' : '');
+  const c = classicCard(id);
+  wrap.appendChild(c);
+  if (classicOpen.has(id) && hasParents(id)) {
+    const stub = document.createElement('span');
+    stub.className = 'stub';
+    c.appendChild(stub);
+    const kids = document.createElement('div');
+    kids.className = 'kids';
+    const list = [id * 2, id * 2 + 1].filter(has);
+    list.forEach((k, i) => {
+      const kb = classicBranch(k, isNew);
+      if (i === 0) { const m = document.createElement('span'); m.className = 'mask t'; kb.appendChild(m); }
+      if (i === list.length - 1) { const m = document.createElement('span'); m.className = 'mask b'; kb.appendChild(m); }
+      kids.appendChild(kb);
+    });
+    wrap.appendChild(kids);
+  }
+  return wrap;
+}
+
+function classicRulerDraw() {
+  classicRuler.innerHTML = '';
+  let maxG = 1;
+  classicTree.querySelectorAll('.person-card').forEach(p => { maxG = Math.max(maxG, get(+p.dataset.id).G); });
+  const pitch = 246 * classicZoomK;
+  for (let g = 1; g <= maxG; g++) {
+    const t = document.createElement('div');
+    t.className = 'tick';
+    t.style.left = (g - 1) * pitch + 'px';
+    t.innerHTML = '<b>G' + g + '</b><span>' + (GEN_RANGE[g - 1] || '') + '</span>';
+    classicRuler.appendChild(t);
+  }
+}
+
+function drawClassic() {
+  classicTree.innerHTML = '';
+  classicTree.appendChild(classicBranch(1, false));
+  classicRulerDraw();
+  markSel();
+}
+
+function pathTo(id) {
+  const p = [];
+  let c = id;
+  while (c > 1) { c = Math.floor(c / 2); p.unshift(c); }
+  return p;
+}
+
+function gotoPerson(id) {
+  if (TREE_VIEW === 'classic') {
+    pathTo(id).forEach(a => { if (hasParents(a)) classicOpen.add(a); });
+    drawClassic();
+  }
+  select(id);
+  if (TREE_VIEW === 'timeline' && TL_ROW[id]) {
+    requestAnimationFrame(() => zpTimeline.focus(TL_SPAN[id].x0, TL_ROW[id].cy, Math.max(zpTimeline.k, 6)));
+  }
+  if (TREE_VIEW === 'classic') {
+    requestAnimationFrame(() => {
+      const el = classicTree.querySelector('.person-card[data-id="' + id + '"]');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        el.classList.remove('flash');
+        void el.offsetWidth;
+        el.classList.add('flash');
+      }
+    });
+  }
 }
 
 let PENDING = [];
@@ -1382,15 +1695,25 @@ function markSel() {
     });
     return;
   }
+  if (TREE_VIEW === 'classic') {
+    classicTree.querySelectorAll('.person-card').forEach(e => {
+      const on = +e.dataset.id === SEL;
+      e.classList.toggle('sel', on);
+      if (on) e.style.borderLeftColor = '#6E9CBF';
+      else e.style.borderLeftColor = colOf(get(+e.dataset.id));
+    });
+    return;
+  }
+  const ink = tlInk();
   tlG.querySelectorAll('[data-id]:not(.tl-name)').forEach(p => {
     const on = +p.getAttribute('data-id') === SEL;
-    p.setAttribute('stroke', on ? '#E8E2D5' : '#0F141A');
-    p.setAttribute('stroke-width', on ? 2 : .6);
+    p.setAttribute('stroke', on ? ink.sel : (p.dataset.rest || ink.edge));
+    p.setAttribute('stroke-width', on ? 2 : (p.dataset.restw || 0.6));
     if (on) p.parentNode.appendChild(p);
   });
   tlG.querySelectorAll('.tl-name').forEach(tx => {
     const on = +tx.dataset.id === SEL;
-    tx.setAttribute('fill', on ? '#E8E2D5' : tx.getAttribute('font-style') === 'italic' ? '#8A939E' : '#C8D0D9');
+    tx.setAttribute('fill', on ? ink.sel : (tx.dataset.rest || ink.name));
   });
 }
 
@@ -1454,7 +1777,7 @@ function wireDetailActions(id, root) {
     const gg = firstGiven(get(s));
     b.textContent = get(s).n + (gg && gg[0] === gg[0].toUpperCase() ? ' ' + gg[0] + '.' : '');
     if (s === id) { b.style.borderColor = '#6E9CBF'; b.style.color = '#E8E2D5'; }
-    b.onclick = () => select(s);
+    b.onclick = () => gotoPerson(s);
     pe.appendChild(b);
   });
   const tm = root.querySelector('#tomap');
@@ -1525,7 +1848,7 @@ function drawLegend() {
     Object.keys(ELC).forEach(k => h += swatch(ELC[k], el2[k]));
     h += swatch(NONE, t('unknown'));
   }
-  h += `<div style="margin-top:6px;color:var(--chalk3);font-size:9px;line-height:1.45">${t(TREE_VIEW === 'fan' ? 'noWedge' : 'tlHint')}</div>`;
+  h += `<div style="margin-top:6px;color:var(--chalk3);font-size:9px;line-height:1.45">${t(TREE_VIEW === 'fan' ? 'noWedge' : TREE_VIEW === 'timeline' ? 'tlHint' : 'classicHint')}</div>`;
   lgTree.innerHTML = h;
 }
 
@@ -1540,7 +1863,7 @@ qEl.addEventListener('input', () => {
   HAY.filter(h => h.s.includes(v)).slice(0, 24).forEach(h => {
     const b = document.createElement('button');
     b.innerHTML = `<b>${h.p.n}</b> ${h.p.g||''}<span>${t('sosa')} ${h.p.id} · ${lifeSpan(h.p)}${h.p.bp ? ' · ' + h.p.bp[0] : ''}</span>`;
-    b.onclick = () => { qrEl.innerHTML = ''; qEl.value = ''; setView('tree'); select(h.p.id); };
+    b.onclick = () => { qrEl.innerHTML = ''; qEl.value = ''; setView('tree'); gotoPerson(h.p.id); };
     qrEl.appendChild(b);
   });
 });
@@ -2351,6 +2674,8 @@ function stepYear(d) {
 function syncMapFrame() {
   const yf = Math.floor(mapTime);
   document.getElementById('tl-year').textContent = yf;
+  const histYr = document.getElementById('hist-now-yr');
+  if (histYr) histYr.textContent = yf;
   slEl.value = yf;
   if (yf !== mapYearFloor) { mapYearFloor = yf; drawMap(); }
   else {
@@ -2366,6 +2691,8 @@ function setYear(y) {
   mapYearFloor = Math.floor(mapTime);
   slEl.value = mapYearFloor;
   document.getElementById('tl-year').textContent = mapYearFloor;
+  const histYr = document.getElementById('hist-now-yr');
+  if (histYr) histYr.textContent = mapYearFloor;
   drawMap();
   if (SEL != null && VIEW === 'map') {
     Object.values(mapCardNodes).forEach(c => c.classList.toggle('sel', +c.dataset.id === SEL));
@@ -2726,6 +3053,7 @@ function setLang(l) {
   qEl.placeholder = t('search');
   document.getElementById('sx').textContent = '✕';
   drawTreeViewChips();
+  drawClassicDepthChips();
   drawChips(); drawTree(); drawLegend();
   applyTheme();
   drawMapChips(); drawMapLegend(); drawMap();
@@ -2735,7 +3063,11 @@ function setLang(l) {
 document.getElementById('fr').onclick = () => setLang('fr');
 document.getElementById('en').onclick = () => setLang('en');
 
-function zpTreeActive() { return TREE_VIEW === 'fan' ? zpTree : zpTimeline; }
+function zpTreeActive() {
+  if (TREE_VIEW === 'fan') return zpTree;
+  if (TREE_VIEW === 'timeline') return zpTimeline;
+  return zpClassic;
+}
 
 document.getElementById('zin').onclick  = () => zpTreeActive().zoom(1.5);
 document.getElementById('zout').onclick = () => zpTreeActive().zoom(1/1.5);
