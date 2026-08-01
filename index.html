@@ -2565,6 +2565,7 @@ const smoothT = t => t * t * (3 - 2 * t);
 const EVENT_YRS = 6;
 const DEATH_FADE = 3;
 const BAND_YRS = 2;
+const DEPART_YRS = 6;
 const BIRTH_YRS = 1.2;
 const TICKER_YRS = 12;
 const TICKER_MAX = 7;
@@ -3212,8 +3213,10 @@ function updateLivingNode(p, ctx) {
   const trade = ev.tradeY != null && ev.cat && time >= ev.tradeY;
   if (trade && lod > 0) {
     const tp = REDUCED_MOTION ? 1 : (phase(time, ev.tradeY, 1.5) ?? 0);
-    const gs = 8 * (0.5 + 0.5 * tp);
-    const sx = ringR + 1.2, sy = -r - 3.5;
+    /* a badge at the hip: standing beside the figure it would reach into the
+       next seat along and read as the neighbour's trade */
+    const gs = 7 * (0.5 + 0.5 * tp);
+    const sx = ringR * 0.85, sy = -figSize * 0.2;
     sa(n.sigil, 'href', '#sg-' + ev.cat);
     sa(n.sigil, 'width', gs.toFixed(2));
     sa(n.sigil, 'height', gs.toFixed(2));
@@ -3265,20 +3268,19 @@ function updateLivingNode(p, ctx) {
     sa(n.sel, 'opacity', '0.9');
   } else sa(n.sel, 'opacity', '0');
 
-  /* name only when zoomed in, selected, or something just happened */
-  const named = lod > 1 || SEL === p.id || (evNow && lod > 0);
+  /* first name, centred under the feet — captioning the figure the way the
+     place names caption the towns. Held back at the widest zoom, where the
+     figures are too close together for the text to belong to anything. */
+  const named = lod > 0 || SEL === p.id;
   if (named) {
-    const txt = (firstGiven(p) || p.n).slice(0, 10);
+    const txt = (firstGiven(p) || p.n).slice(0, 12);
     if (n.label.textContent !== txt) n.label.textContent = txt;
-    /* inside a household the names fan out to the side the figure stands on,
-       so a couple's two labels never land on top of each other */
-    const lx = slot && slot.labelSide < 0 ? -(ringR + 3) : (ringR + 3);
-    sa(n.label, 'text-anchor', slot && slot.labelSide < 0 ? 'end' : 'start');
-    sa(n.label, 'x', lx.toFixed(1));
-    sa(n.label, 'y', (cy0 + 3 * ctx.labelScale).toFixed(2));
+    sa(n.label, 'text-anchor', 'middle');
+    sa(n.label, 'x', '0');
+    sa(n.label, 'y', (feet + 4 + 6 * ctx.labelScale).toFixed(2));
     sa(n.label, 'font-size', (7 * ctx.labelScale).toFixed(2));
     sa(n.label, 'fill', th.chalk);
-    sa(n.label, 'opacity', ((SEL === p.id ? 0.95 : 0.7) * alive).toFixed(3));
+    sa(n.label, 'opacity', ((SEL === p.id ? 0.95 : 0.72) * alive).toFixed(3));
   } else sa(n.label, 'opacity', '0');
 
   sa(n.hit, 'cy', cy0.toFixed(2));
@@ -3297,7 +3299,7 @@ function drawLivingLines(shown, ctx) {
 
   shown.forEach(p => {
     if (!pos.has(p.id)) return;
-    const mig = livingMigState(p, time, offMap);
+    const mig = (ctx.migs && ctx.migs.get(p.id)) || travelState(p, time, offMap);
     if (!mig) return;
     if (mig.t >= 1 || REDUCED_MOTION) {
       /* once settled, land the trail on the seat they actually took */
@@ -3306,7 +3308,7 @@ function drawLivingLines(shown, ctx) {
       return;
     }
     /* comet: a short lit segment trailing the traveller */
-    const [mx, my] = migControl(mig.x0, mig.y0, mig.x1, mig.y1);
+    const mx = mig.mx, my = mig.my;
     const len = quadLen(mig.x0, mig.y0, mx, my, mig.x1, mig.y1);
     const head = len * mig.t;
     if (head < 0.6) return;
@@ -3337,6 +3339,34 @@ function drawLivingLines(shown, ctx) {
         x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1),
         stroke: th.chalk3, 'stroke-width': near ? 0.9 : 0.6,
         opacity: ((near ? 0.5 : 0.16) * (1 - cage / 18) + (near ? 0.1 : 0.03)).toFixed(3)
+      }));
+    });
+  }
+
+  /* A child striking out on their own. Leaving town draws its own curve, but
+     leaving the family seat for a household across the same village would
+     otherwise be a silent jump, so hold a line back to the parents for a few
+     years and let it fade. */
+  if (lod > 0) {
+    shown.forEach(p => {
+      const ev = LIFE_EV.get(p.id);
+      if (!ev || ev.by == null) return;
+      const leaves = Math.min(ev.by + 18, ev.uy != null ? ev.uy : Infinity);
+      if (!isFinite(leaves)) return;
+      const since = time - leaves;
+      if (since < 0 || since > DEPART_YRS) return;
+      if (livingMigState(p, time, offMap)) return;
+      const me = pos.get(p.id);
+      if (!me) return;
+      const ps = [p.id * 2, p.id * 2 + 1].map(i => pos.get(i)).filter(Boolean);
+      if (!ps.length) return;
+      const px = ps.reduce((s, q) => s + q[0], 0) / ps.length;
+      const py = ps.reduce((s, q) => s + q[1], 0) / ps.length;
+      if (Math.hypot(me[0] - px, me[1] - py) < 1.5) return;
+      livingLines.appendChild(el('line', {
+        x1: px.toFixed(1), y1: py.toFixed(1), x2: me[0].toFixed(1), y2: me[1].toFixed(1),
+        stroke: th.chalk2, 'stroke-width': 0.9, 'stroke-dasharray': '2.5 2',
+        opacity: (0.55 * (1 - since / DEPART_YRS)).toFixed(3)
       }));
     });
   }
@@ -3463,7 +3493,10 @@ function resetLivingNodes() {
 
 /* household seating on the map: a family stands shoulder to shoulder, and
    separate households at one place queue up above and below each other */
-const HH_ROW = 16, HH_ADULT_W = 9, HH_KID_W = 7;
+/* Seat pitch has to clear the figures themselves — an adult glyph is about
+   12.4 units across and a child's 8.9 — and the row pitch has to clear the
+   name printed under each one. */
+const HH_ROW = 27, HH_ADULT_W = 14, HH_KID_W = 11;
 
 function livingLayout(time) {
   const shown = ALL.filter(p => livingRenderable(p, time));
@@ -3502,6 +3535,12 @@ function livingLayout(time) {
     });
   });
 
+  /* remember where everyone was sitting: someone who leaves has to set off
+     from the seat they were actually in, not from the bare place marker */
+  if (time < seatT - 0.01) { lastSeat.clear(); departSeat.clear(); }
+  seatT = time;
+  settled.forEach(p => { if (pos.has(p.id)) lastSeat.set(p.id, pos.get(p.id)); });
+
   /* anyone mid-move keeps the old spiral offsets: they belong to no household
      until the curve finishes, so they must not sit on top of one another */
   const pairs = [];
@@ -3510,14 +3549,38 @@ function livingLayout(time) {
     if (yr(p.u) && p.up?.[2] && time >= yr(p.u)) pairs.push({ id: p.id, pl: p.up });
   });
   const offMap = buildDotOffsets(pairs);
+  const migs = new Map();
   moving.forEach(p => {
-    const xy = livingXY(p, time, offMap);
-    if (!xy) return;
-    pos.set(p.id, xy);
-    slots.set(p.id, { grouped: false, coupled: false, figK: 1, unit: null, labelSide: 1 });
+    if (!departSeat.has(p.id) && lastSeat.has(p.id)) departSeat.set(p.id, lastSeat.get(p.id));
+    const mig = travelState(p, time, offMap);
+    if (!mig) {
+      const xy = livingXY(p, time, offMap);
+      if (xy) pos.set(p.id, xy);
+    } else {
+      migs.set(p.id, mig);
+      pos.set(p.id, quadAt(mig.x0, mig.y0, mig.mx, mig.my, mig.x1, mig.y1, mig.t));
+    }
+    if (pos.has(p.id))
+      slots.set(p.id, { grouped: false, coupled: false, figK: 1, unit: null, labelSide: 1 });
   });
 
-  return { shown, pos, slots, units, offMap };
+  return { shown, pos, slots, units, offMap, migs };
+}
+
+/* the seat someone was last in, and the one they set out from */
+const lastSeat = new Map(), departSeat = new Map();
+let seatT = -Infinity;
+
+/* livingMigState re-anchored on the seat the traveller vacated, so the curve
+   leaves the family group rather than the place marker beside it */
+function travelState(p, time, offMap) {
+  const mig = livingMigState(p, time, offMap);
+  if (!mig) return null;
+  const from = departSeat.get(p.id);
+  if (from) { mig.x0 = from[0]; mig.y0 = from[1]; }
+  const [mx, my] = migControl(mig.x0, mig.y0, mig.x1, mig.y1);
+  mig.mx = mx; mig.my = my;
+  return mig;
 }
 
 /* the chrome that turns adjacent figures into one silhouette: a shared plinth,
@@ -3585,7 +3648,8 @@ function updateLivingLayer() {
 
   /* labels are annotations, not map objects: keep them a constant size on screen */
   const labelScale = mapFitK > 0 ? Math.min(1, mapFitK / zpMap.k) : 1;
-  const ctx = { time, offMap: layout.offMap, pos, slots, th, lod, dim, labelScale };
+  const ctx = { time, offMap: layout.offMap, pos, slots, migs: layout.migs,
+                th, lod, dim, labelScale };
   drawLivingLines(shown, ctx);
   drawHouseholdChrome(layout, ctx);
   shown.forEach(p => { if (pos.has(p.id)) updateLivingNode(p, ctx); });
