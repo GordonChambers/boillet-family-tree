@@ -3173,7 +3173,11 @@ function updateLivingNode(p, ctx) {
     livingDots.appendChild(n.g);
   }
   const { time, th, lod } = ctx;
-  sa(n.g, 'transform', `translate(${xy[0].toFixed(2)} ${xy[1].toFixed(2)})`);
+  /* the node is drawn at design size and scaled here, so the figure and
+     everything pinned to it move together as the zoom changes */
+  const K = ctx.K || 1;
+  sa(n.g, 'transform',
+     `translate(${xy[0].toFixed(2)} ${xy[1].toFixed(2)}) scale(${K.toFixed(4)})`);
   sa(n.g, 'opacity', ctx.dim && !ctx.dim.has(p.id) ? '0.3' : '1');
 
   const dead = ev.edy != null && time > ev.edy;
@@ -3298,10 +3302,13 @@ function updateLivingNode(p, ctx) {
   if (named) {
     const txt = (firstGiven(p) || p.n).slice(0, 12);
     if (n.label.textContent !== txt) n.label.textContent = txt;
+    /* names are wider than the seats they sit under, so neighbours in a
+       household drop to alternate lines rather than printing over each other */
+    const row = slot ? (slot.seat || 0) % 2 : 0;
     sa(n.label, 'text-anchor', 'middle');
     sa(n.label, 'x', '0');
-    sa(n.label, 'y', (feet + 4 + 6 * ctx.labelScale).toFixed(2));
-    sa(n.label, 'font-size', (7 * ctx.labelScale).toFixed(2));
+    sa(n.label, 'y', (feet + 8 + row * 7).toFixed(2));
+    sa(n.label, 'font-size', '6');
     sa(n.label, 'fill', th.chalk);
     sa(n.label, 'opacity', ((SEL === p.id ? 0.95 : 0.72) * alive).toFixed(3));
   } else sa(n.label, 'opacity', '0');
@@ -3521,6 +3528,16 @@ function resetLivingNodes() {
    name printed under each one. */
 const HH_ROW = 27, HH_ADULT_W = 14, HH_KID_W = 11;
 
+/* The people track the zoom at half rate: double the map and they grow by
+   √2, not 2. Drawn at full rate they swamped the map the moment you looked
+   closely; drawn at a fixed screen size they stopped belonging to the ground
+   they stand on. Everything in a household — seats, plinth, rings, captions
+   — takes this one factor, so a family keeps its proportions at every zoom. */
+function householdScale() {
+  const rel = mapFitK > 0 ? zpMap.k / mapFitK : 1;
+  return Math.min(2.4, 1 / Math.sqrt(Math.max(0.05, rel)));
+}
+
 function livingLayout(time) {
   const shown = ALL.filter(p => livingRenderable(p, time));
   const settled = [], moving = [];
@@ -3528,33 +3545,35 @@ function livingLayout(time) {
 
   const hh = buildHouseholds(time, settled, p => settledPlace(p, time), { absorbKids: true });
   const pos = new Map(), slots = new Map(), units = [];
+  const K = householdScale();
+  const ROW = HH_ROW * K, ADULT_W = HH_ADULT_W * K, KID_W = HH_KID_W * K;
 
   hh.locs.forEach(g => {
     const [cx, cy] = prj(g.pl[2], g.pl[3]);
     const n = g.units.length;
     g.units.forEach((u, i) => {
-      const uy = cy + (i - (n - 1) / 2) * HH_ROW;
-      const w = u.adults.length * HH_ADULT_W + u.kids.length * HH_KID_W;
+      const uy = cy + (i - (n - 1) / 2) * ROW;
+      const w = u.adults.length * ADULT_W + u.kids.length * KID_W;
       const grouped = u.members.length > 1;
       const coupled = u.kind === 'couple';
       let x = cx - w / 2;
       const adultXs = [];
       u.adults.forEach((m, j) => {
-        const mx = x + HH_ADULT_W / 2; x += HH_ADULT_W;
+        const mx = x + ADULT_W / 2; x += ADULT_W;
         adultXs.push(mx);
         pos.set(m.id, [mx, uy]);
         slots.set(m.id, { grouped, coupled, figK: grouped ? 0.92 : 1, unit: u.key,
-                          hasKid: u.kids.length > 0,
-                          labelSide: (u.adults.length > 1 && j === 0) ? -1 : 1 });
+                          hasKid: u.kids.length > 0, seat: j });
       });
       const kidXs = [];
       u.kids.forEach(k => {
-        const kx = x + HH_KID_W / 2; x += HH_KID_W;
+        const kx = x + KID_W / 2; x += KID_W;
         kidXs.push(kx);
         pos.set(k.id, [kx, uy]);
-        slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key, labelSide: 1 });
+        slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key,
+                          seat: u.adults.length + kidXs.length - 1 });
       });
-      units.push({ u, cx, cy: uy, w, grouped, coupled, adultXs, kidXs });
+      units.push({ u, cx, cy: uy, w, grouped, coupled, adultXs, kidXs, K });
     });
   });
 
@@ -3584,10 +3603,10 @@ function livingLayout(time) {
       pos.set(p.id, quadAt(mig.x0, mig.y0, mig.mx, mig.my, mig.x1, mig.y1, mig.t));
     }
     if (pos.has(p.id))
-      slots.set(p.id, { grouped: false, coupled: false, figK: 1, unit: null, labelSide: 1 });
+      slots.set(p.id, { grouped: false, coupled: false, figK: 1, unit: null, seat: 0 });
   });
 
-  return { shown, pos, slots, units, offMap, migs };
+  return { shown, pos, slots, units, offMap, migs, K };
 }
 
 /* the seat someone was last in, and the one they set out from */
@@ -3615,26 +3634,29 @@ function drawHouseholdChrome(layout, ctx) {
   layout.units.forEach(un => {
     if (!un.grouped) return;
     const dull = dim && !un.u.members.some(m => dim.has(m.id)) ? DIM_OP : 1;
-    const y = un.cy + 1.5, half = un.w / 2 - 1;
+    /* the chrome takes the same zoom factor as the figures it belongs to */
+    const K = un.K || 1;
+    const y = un.cy + 1.5 * K, half = un.w / 2 - K;
 
     livingUnitsG.appendChild(el('path', {
       d: `M ${(un.cx - half).toFixed(1)} ${y.toFixed(1)} Q ${un.cx.toFixed(1)} ` +
-         `${(y + 1.5).toFixed(1)} ${(un.cx + half).toFixed(1)} ${y.toFixed(1)}`,
-      fill: 'none', stroke: th.chalk2, 'stroke-width': 0.9, 'stroke-linecap': 'round',
-      opacity: (0.5 * dull).toFixed(3)
+         `${(y + 1.5 * K).toFixed(1)} ${(un.cx + half).toFixed(1)} ${y.toFixed(1)}`,
+      fill: 'none', stroke: th.chalk2, 'stroke-width': (0.9 * K).toFixed(2),
+      'stroke-linecap': 'round', opacity: (0.5 * dull).toFixed(3)
     }));
 
     if (un.coupled && un.adultXs.length === 2) {
-      const mx = (un.adultXs[0] + un.adultXs[1]) / 2, my = un.cy - 11.5;
+      const mx = (un.adultXs[0] + un.adultXs[1]) / 2, my = un.cy - 11.5 * K;
       const wp = un.u.uy != null ? (phase(time, un.u.uy, BAND_YRS) ?? 0) : 1;
       const op = (0.92 * dull * (REDUCED_MOTION ? 1 : wp)).toFixed(3);
       if (+op > 0.01) {
-        const r = 1.55, d = 1.2;
-        const rg = el('g', { fill: 'none', stroke: th.gold, 'stroke-width': 0.55, opacity: op });
+        const r = 1.55 * K, d = 1.2 * K;
+        const rg = el('g', { fill: 'none', stroke: th.gold,
+                             'stroke-width': (0.55 * K).toFixed(2), opacity: op });
         /* dotted where the marriage year was reasoned from the children
            rather than read off a certificate — the same convention the age
            rings use for an estimated death */
-        if (un.u.uyEst) rg.setAttribute('stroke-dasharray', '0.7 0.8');
+        if (un.u.uyEst) rg.setAttribute('stroke-dasharray', `${(0.7 * K).toFixed(2)} ${(0.8 * K).toFixed(2)}`);
         rg.appendChild(el('circle', { cx: (mx - d).toFixed(2), cy: my.toFixed(2), r: r }));
         rg.appendChild(el('circle', { cx: (mx + d).toFixed(2), cy: my.toFixed(2), r: r }));
         /* the left ring's near arc, redrawn last, so the two read as linked */
@@ -3649,9 +3671,10 @@ function drawHouseholdChrome(layout, ctx) {
     if (un.kidXs.length && un.adultXs.length) {
       const sx = (un.adultXs[un.adultXs.length - 1] + un.kidXs[0]) / 2;
       livingUnitsG.appendChild(el('line', {
-        x1: sx.toFixed(1), y1: (un.cy - 6.5).toFixed(1),
-        x2: sx.toFixed(1), y2: (un.cy + 0.5).toFixed(1),
-        stroke: th.chalk3, 'stroke-width': 0.6, opacity: (0.45 * dull).toFixed(3)
+        x1: sx.toFixed(1), y1: (un.cy - 6.5 * K).toFixed(1),
+        x2: sx.toFixed(1), y2: (un.cy + 0.5 * K).toFixed(1),
+        stroke: th.chalk3, 'stroke-width': (0.6 * K).toFixed(2),
+        opacity: (0.45 * dull).toFixed(3)
       }));
     }
   });
@@ -3673,21 +3696,20 @@ function updateLivingLayer() {
   const { shown, pos, slots } = layout;
   const dim = SEL != null ? (selPath || lineageOf(SEL)) : null;
 
-  /* labels are annotations, not map objects: keep them a constant size on screen */
-  const labelScale = mapFitK > 0 ? Math.min(1, mapFitK / zpMap.k) : 1;
+  const K = layout.K;
   const ctx = { time, offMap: layout.offMap, pos, slots, migs: layout.migs,
-                th, lod, dim, labelScale };
+                th, lod, dim, K };
   drawLivingLines(shown, ctx);
   drawHouseholdChrome(layout, ctx);
   shown.forEach(p => { if (pos.has(p.id)) updateLivingNode(p, ctx); });
   livingNodes.forEach((n, id) => {
     if (!pos.has(id)) { n.g.remove(); livingNodes.delete(id); }
   });
-  updateGraves(time, th, lod, labelScale, dim);
+  updateGraves(time, th, lod, K, dim);
   updateLifeTicker(time);
   /* the cards steer clear of every figure on the map */
   mapObstacles = [];
-  pos.forEach(xy => mapObstacles.push([xy[0], xy[1], 11]));
+  pos.forEach(xy => mapObstacles.push([xy[0], xy[1], 11 * K]));
 }
 
 /* ══════════ map card stacks ══════════ */
