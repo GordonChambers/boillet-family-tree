@@ -108,10 +108,10 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
 .legend{
   position:absolute;left:10px;bottom:16px;z-index:20;max-width:min(280px,62vw);
   background:rgba(21,28,36,.95);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;
-  font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--chalk2);box-shadow:0 3px 14px rgba(0,0,0,.5);
+  font-family:var(--mono);font-size:13px;line-height:1.7;color:var(--chalk2);box-shadow:0 3px 14px rgba(0,0,0,.5);
 }
 html[data-theme="light"] .legend{background:rgba(240,237,228,.95)}
-.legend .t{color:var(--chalk3);letter-spacing:.1em;text-transform:uppercase;font-size:10px;margin-bottom:4px}
+.legend .t{color:var(--chalk3);letter-spacing:.1em;text-transform:uppercase;font-size:11px;margin-bottom:4px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .legend i.leg-curve{width:18px;height:0;border-radius:0;border-top:2px solid var(--chalk2);vertical-align:middle;transform:rotate(-6deg)}
 .legend i.leg-dash{width:18px;height:0;border-radius:0;border-top:2px dashed #C9A44E;vertical-align:middle}
@@ -312,7 +312,7 @@ h2:first-of-type{margin-top:0}
 }
 .pcard{
   position:absolute;pointer-events:auto;cursor:pointer;
-  width:188px;padding:8px 10px 9px;
+  width:210px;padding:8px 10px 9px;
   background:var(--pcard-bg);border:1px solid var(--pcard-border);
   border-left:3px solid var(--woad);border-radius:4px;
   box-shadow:var(--shadow);
@@ -320,18 +320,18 @@ h2:first-of-type{margin-top:0}
   transform:translate(-50%,-100%) scale(calc(var(--ps,1) * var(--map-inv,1)));
   filter:grayscale(var(--pg,0));opacity:var(--po,1);
   transition:filter .4s,opacity .5s,transform .35s,box-shadow .15s;
-  font-size:11px;line-height:1.35;color:var(--chalk);
+  font-size:15px;line-height:1.35;color:var(--chalk);
 }
 .pcard.f{border-left-color:var(--madder)}
 .pcard:hover,.pcard.sel{box-shadow:0 6px 22px rgba(0,0,0,.35);z-index:5}
 .pcard.sel{border-color:var(--woad)}
 .pcard.dim{opacity:.28!important;filter:saturate(.35);pointer-events:none}
 .pcard.dim.sel{opacity:1!important;filter:none;pointer-events:auto}
-.pcard .pn{font-weight:600;font-size:11px;line-height:1.25}
+.pcard .pn{font-weight:600;font-size:15px;line-height:1.25}
 .pcard .pn em{font-style:italic;font-weight:400;color:var(--chalk2)}
-.pcard .py{font-family:var(--mono);font-size:11px;color:var(--chalk3);margin-top:2px;letter-spacing:.04em}
-.pcard .pp{font-size:11px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard .pd{font-family:var(--mono);font-size:11px;color:var(--chalk3);margin-top:4px;line-height:1.5}
+.pcard .py{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:2px;letter-spacing:.04em}
+.pcard .pp{font-size:15px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .pd{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:4px;line-height:1.5}
 .pcard .pd span{display:block}
 
 .life-ticker{
@@ -430,7 +430,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .legend{max-width:300px;bottom:16px}
   .tl-chart{top:10px;right:10px;width:390px;height:min(630px,calc(100% - 20px))}
   .hist-viewport{height:auto;flex:1}
-  .pcard{width:170px;font-size:11px}
+  .pcard{width:200px;font-size:15px}
 }
 @media(max-width:420px){
   .search input{width:104px}
@@ -1316,10 +1316,7 @@ function setTreeView(v) {
     if (v === 'fan' || v === 'timeline') requestAnimationFrame(fitLabels);
     if (v === 'classic') {
       if (SEL != null) markSel();
-      if (!classicFocused) {
-        classicFocused = true;
-        classicFocusRoot(false);
-      }
+      classicFocusRoot(false);
     }
   }
 }
@@ -1682,7 +1679,7 @@ function drawTimeline() {
     const rest = ghost ? c : ink.edge, restW = ghost ? 0.9 : 0.6;
     const rect = el('rect', {
       x: sp.x0, y: row.yTop + 1, width: Math.max(3, sp.x1 - sp.x0), height: TL.rh - 2,
-      rx: 1.5, fill: ghost ? 'none' : c, stroke: rest, 'stroke-width': restW,
+      rx: 1.5, fill: ghost ? 'transparent' : c, stroke: rest, 'stroke-width': restW,
       opacity: firm ? 1 : ghost ? 0.5 : 0.7, 'data-id': id
     });
     if (!firm) rect.setAttribute('stroke-dasharray', '3 2.5');
@@ -1734,19 +1731,24 @@ const classicTree = document.getElementById('classic-tree');
 const classicRuler = document.getElementById('classic-ruler');
 const GEN_RANGE = ['1930s','1900s','1870s','1840s','1810s','1780s','1750s','1720s','1690s','1660s','1620s'];
 const hasParents = id => has(id * 2) || has(id * 2 + 1);
+const CLASSIC_EXPAND_ALL = 13;
 let classicOpen = new Set();
-ALL.forEach(p => { if (p.G < 3 && hasParents(p.id)) classicOpen.add(p.id); });
+ALL.forEach(p => { if (p.G < CLASSIC_EXPAND_ALL && hasParents(p.id)) classicOpen.add(p.id); });
 let classicZoomK = 1;
-let classicFocused = false;
 
 function classicFocusRoot(smooth) {
   requestAnimationFrame(() => {
-    const el = classicTree.querySelector('.person-card[data-id="1"]');
-    if (!el) return;
-    el.scrollIntoView({
-      behavior: smooth ? 'smooth' : 'auto',
-      block: 'center',
-      inline: 'start'
+    requestAnimationFrame(() => {
+      const el = classicTree.querySelector('.person-card[data-id="1"]');
+      if (!el) return;
+      const sr = classicScroller.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      const padL = 16;
+      classicScroller.scrollTo({
+        left: Math.max(0, classicScroller.scrollLeft + (er.left - sr.left) - padL),
+        top: Math.max(0, classicScroller.scrollTop + (er.top + er.height / 2 - sr.top) - sr.height / 2),
+        behavior: smooth ? 'smooth' : 'auto'
+      });
     });
   });
 }
@@ -1755,8 +1757,7 @@ const zpClassic = {
   zoom(f) { setClassicZoom(classicZoomK * f); },
   reset() {
     setClassicZoom(1);
-    classicExpandTo(3);
-    classicFocused = true;
+    classicExpandTo(CLASSIC_EXPAND_ALL);
     classicFocusRoot(false);
   }
 };
@@ -1877,7 +1878,7 @@ function drawClassicDepthChips() {
   const cd = document.getElementById('classic-depth');
   if (!cd) return;
   cd.innerHTML = '';
-  [[3, 'G3'], [6, 'G6'], [13, t('expandAll')]].forEach(([g, lab]) => {
+  [[3, 'G3'], [6, 'G6'], [CLASSIC_EXPAND_ALL, t('expandAll')]].forEach(([g, lab]) => {
     const b = document.createElement('button');
     b.textContent = lab;
     b.onclick = () => classicExpandTo(g);
@@ -2392,11 +2393,11 @@ function drawLegend() {
     h += swatch(NONE, t('unknown'));
   } else if (MODE === 'region') {
     h += geoLegendHtml();
-    h += `<div style="margin-top:3px;color:var(--chalk3);font-size:9px;line-height:1.4">${t('region')}: ${L === 'fr' ? 'naissance, union, décès' : 'birth, marriage, death'}</div>`;
-    h += `<div style="color:var(--chalk3);font-size:9px">${GEO.lo0.toFixed(1)}°–${GEO.lo1.toFixed(1)} · ${GEO.la0.toFixed(1)}°–${GEO.la1.toFixed(1)}°</div>`;
+    h += `<div style="margin-top:3px;color:var(--chalk3);font-size:13px;line-height:1.4">${t('region')}: ${L === 'fr' ? 'naissance, union, décès' : 'birth, marriage, death'}</div>`;
+    h += `<div style="color:var(--chalk3);font-size:13px">${GEO.lo0.toFixed(1)}°–${GEO.lo1.toFixed(1)} · ${GEO.la0.toFixed(1)}°–${GEO.la1.toFixed(1)}°</div>`;
     h += `<div style="margin-top:3px">${swatch(NONE, t('unknown'))}</div>`;
   }
-  h += `<div style="margin-top:6px;color:var(--chalk3);font-size:9px;line-height:1.45">${t(TREE_VIEW === 'fan' ? 'noWedge' : TREE_VIEW === 'timeline' ? 'tlHint' : 'classicHint')}</div>`;
+  h += `<div style="margin-top:6px;color:var(--chalk3);font-size:13px;line-height:1.45">${t(TREE_VIEW === 'fan' ? 'noWedge' : TREE_VIEW === 'timeline' ? 'tlHint' : 'classicHint')}</div>`;
   lgTree.innerHTML = h;
 }
 
@@ -2502,11 +2503,11 @@ const smoothT = t => t * t * (3 - 2 * t);
 
 /* living layer tuning — every span below is in map-years, never wall-clock,
    so scrubbing and pausing stay in step with the animation */
-const EVENT_YRS = 3;
+const EVENT_YRS = 6;
 const DEATH_FADE = 3;
 const BAND_YRS = 2;
 const BIRTH_YRS = 1.2;
-const TICKER_YRS = 4;
+const TICKER_YRS = 12;
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let LIVING_STYLE = localStorage.getItem('boillet-living-style') === 'silhouette' ? 'silhouette' : 'medallion';
 let mapFitK = 0, livingLod = -1, livingK = -1;
