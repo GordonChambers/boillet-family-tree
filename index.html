@@ -116,6 +116,7 @@ html[data-theme="light"] .legend{background:rgba(240,237,228,.95)}
 .legend i.leg-curve{width:18px;height:0;border-radius:0;border-top:2px solid var(--chalk2);vertical-align:middle;transform:rotate(-6deg)}
 .legend i.leg-dash{width:18px;height:0;border-radius:0;border-top:2px dashed #C9A44E;vertical-align:middle}
 .legend i.leg-fil{width:18px;height:0;border-radius:0;border-top:1px solid var(--chalk3);vertical-align:middle}
+.legend i.leg-plinth{width:18px;height:0;border-radius:0;border-top:1.6px solid var(--chalk2);opacity:.75;vertical-align:middle}
 .legend i.leg-ring{width:11px;height:11px;border-radius:50%;border:1.4px solid var(--chalk2);background:none;vertical-align:-2px}
 .legend i.leg-ring.est{border-style:dotted}
 .legend i.leg-ring.band{border-color:#C9A44E}
@@ -304,7 +305,7 @@ h2:first-of-type{margin-top:0}
 
 /* map extras */
 .map-wrap{position:absolute;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none}
-.map-wrap svg{position:absolute;inset:0}
+.map-wrap > svg{position:absolute;inset:0}
 .map-cards{
   position:absolute;inset:0;pointer-events:none;overflow:visible;
   transform-origin:0 0;user-select:none;-webkit-user-select:none;
@@ -333,6 +334,51 @@ h2:first-of-type{margin-top:0}
 .pcard .pp{font-size:15px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .pcard .pd{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:4px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
 .pcard .pd span{display:block}
+
+/* one stack per place: families side by side, generations running downward */
+.mstack{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;
+  will-change:transform;z-index:2}
+.mstack:hover{z-index:8}
+.mstack.hassel{z-index:6}
+.mstack.dragging{z-index:9}
+.mstack-box{display:flex;flex-direction:column;align-items:stretch;gap:6px;
+  padding:5px 6px 6px;border-radius:8px;border:1px solid transparent}
+/* nearly opaque: where the map runs out of room and stacks do overlap, the
+   one in front still has to be readable */
+.mstack.grouped .mstack-box{
+  background:color-mix(in srgb,var(--pcard-bg) 93%,transparent);
+  border-color:var(--pcard-border);box-shadow:var(--shadow)}
+.mstack-head{pointer-events:auto;cursor:grab;touch-action:none;
+  display:flex;justify-content:space-between;gap:12px;padding:1px 2px 4px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--chalk2);white-space:nowrap;border-bottom:1px solid var(--rule)}
+.mstack-head .dep{color:var(--chalk3);letter-spacing:.04em}
+.mstack.dragging .mstack-head{cursor:grabbing}
+.mstack.pinned .mstack-head{color:var(--woad)}
+.mstack-fams{display:flex;flex-flow:row wrap;align-items:flex-start;gap:9px;
+  max-width:429px}
+.mfam{display:flex;flex-direction:column;width:210px;flex:none}
+.mrow{overflow:hidden;flex:none}
+.mfam .pcard{position:static;transform:none;width:auto;box-shadow:none;
+  transition:filter .4s,box-shadow .15s,border-color .2s}
+.mfam .pcard.sel{box-shadow:0 6px 22px rgba(0,0,0,.35)}
+/* husband over wife: their edges meet so the rings sit inside one block */
+.mfam .pcard.mtop{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:0}
+.mfam .pcard.mbot{border-top-left-radius:0;border-top-right-radius:0;border-top:0}
+.mrings{display:flex;align-items:center;justify-content:center;pointer-events:auto;
+  height:22px;background:var(--pcard-bg);
+  border-left:1px solid var(--pcard-border);border-right:1px solid var(--pcard-border)}
+.mrings svg{display:block;position:static;inset:auto;width:44px;height:20px;flex:none}
+/* generation bar — kept even after everyone below it has gone */
+.msep{pointer-events:auto;position:relative;height:11px;margin:5px 0 5px}
+.msep::before{content:'';position:absolute;left:0;right:0;top:5px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--chalk3) 14%,var(--chalk3) 86%,transparent);
+  opacity:.65}
+.msep::after{content:'';position:absolute;left:50%;top:2px;width:7px;height:7px;
+  margin-left:-3.5px;transform:rotate(45deg);
+  border:1px solid var(--chalk3);background:var(--pcard-bg);opacity:.75}
+#map-callouts{pointer-events:none}
+#map-callouts line,#map-callouts path{vector-effect:non-scaling-stroke}
 
 .life-ticker{
   display:none;flex-direction:column;gap:2px;
@@ -609,8 +655,8 @@ const T = {
     living:'Vivants', livingHint:'Sans date de décès → âge médian',
     livingMig:'Courbe — déménagement (naissance → mariage)',
     livingUnion:'Tirets dorés — époux unis',
-    livMedallion:'Médaillon', livSilhouette:'Silhouette',
-    livStyleHint:'Style des vivants',
+    livHousehold:'Trait de sol commun — même foyer',
+    stackDrag:'Glisser pour déplacer · double-clic pour replacer',
     livRingSure:'Anneau plein — âge (décès attesté)',
     livRingEst:'Anneau pointillé — âge (décès estimé)',
     livBand:'Anneau doré — marié',
@@ -647,8 +693,8 @@ const T = {
     living:'Living', livingHint:'No death date → median age',
     livingMig:'Curved line — move (birth → marriage)',
     livingUnion:'Gold dashes — united spouses',
-    livMedallion:'Medallion', livSilhouette:'Silhouette',
-    livStyleHint:'Style of the living',
+    livHousehold:'Shared ground line — one household',
+    stackDrag:'Drag to move · double-click to re-place',
     livRingSure:'Solid ring — age (death recorded)',
     livRingEst:'Dotted ring — age (death estimated)',
     livBand:'Gold ring — married',
@@ -2449,6 +2495,9 @@ mapSvg.setAttribute('viewBox', `-8 -8 ${MW+16} ${MH+16}`);
 const mapG = el('g', {}); mapSvg.appendChild(mapG);
 const mapCardsEl = document.getElementById('map-cards');
 let mapCardNodes = {};
+/* points the card stacks must stay clear of: figures in living mode, place
+   dots otherwise. [x, y, r] in map units. */
+let mapObstacles = [];
 let mapPlacesG = null, mapLineageG = null, mapPlacesShown = 0, SEL_PLACE = null;
 let mapStaticG = null, mapMigG = null, mapStaticBuilt = false;
 const MAP_DOT = n => 2.4 + 2.5 * Math.sqrt(n);
@@ -2456,6 +2505,8 @@ const MAP_DOT_OFF = idx => {
   const a = idx * 2.39996, r = 7;
   return [Math.cos(a) * r, Math.sin(a) * r];
 };
+
+let cardZoomK = -1, cardResolve = 0;
 
 function syncMapOverlay(S) {
   if (mapLiving && zpMap && zpMap.k !== livingK) updateLivingLayer();
@@ -2466,6 +2517,14 @@ function syncMapOverlay(S) {
   const mapScale = S.k * s;
   mapCardsEl.style.transform = `translate(${ox + 8*s + S.x*s}px,${oy + 8*s + S.y*s}px) scale(${mapScale})`;
   mapCardsEl.style.setProperty('--map-inv', mapScale > 0 ? (1 / mapScale).toFixed(4) : '1');
+  /* panning moves anchors and stacks together, but a zoom changes how much
+     room the stacks have between them, so the field has to settle again */
+  if (Math.abs(S.k - cardZoomK) > 1e-6) {
+    cardZoomK = S.k;
+    if (cardsVisible() && !cardResolve) {
+      cardResolve = requestAnimationFrame(() => { cardResolve = 0; renderPersonCards(); });
+    }
+  }
 }
 
 function mapTap(cx, cy) {
@@ -2510,7 +2569,6 @@ const BIRTH_YRS = 1.2;
 const TICKER_YRS = 12;
 const TICKER_MAX = 7;
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let LIVING_STYLE = localStorage.getItem('boillet-living-style') === 'silhouette' ? 'silhouette' : 'medallion';
 let mapFitK = 0, livingLod = -1, livingK = -1;
 
 function mapAllOn() { return !mapLiving && MAP_LAYERS.every(k => mapLayers[k]); }
@@ -2594,27 +2652,6 @@ function mapXY(pl, id, offMap) {
   const [x, y] = prj(pl[2], pl[3]);
   const [ox, oy] = dotOffset(id, pl, offMap);
   return [x + ox, y + oy];
-}
-
-function livingOffsetPairs(time) {
-  const pairs = [];
-  ALL.filter(p => livingRenderable(p, time)).forEach(p => {
-    pairs.push({ id: p.id, pl: p.bp });
-    if (yr(p.u) && p.up?.[2] && time >= yr(p.u)) pairs.push({ id: p.id, pl: p.up });
-  });
-  return pairs;
-}
-
-function buildLivingOffsets(time) { return buildDotOffsets(livingOffsetPairs(time)); }
-
-function buildCardOffsets(time) {
-  if (mapLiving) return buildLivingOffsets(time);
-  const pairs = [];
-  ALL.forEach(p => {
-    if (!cardPasses(p, time) || !p.bp?.[2]) return;
-    pairs.push({ id: p.id, pl: p.bp });
-  });
-  return buildDotOffsets(pairs);
 }
 
 function livingMigState(p, time, offMap) {
@@ -2714,8 +2751,18 @@ function personLife(p, year) {
 function cardPasses(p, time) {
   if (!p.bp || p.bp[2] == null) return null;
   if (mapLiving) {
-    if (!personAlive(p, time)) return null;
     if (!mapShowCards && p.id !== SEL) return null;
+    const by = yr(p.b);
+    if (by == null || by > time) return null;
+    const edy = effectiveDeath(p);
+    /* the dead linger for DEATH_FADE years so the card can fade out of the
+       stack rather than blink away and yank everyone below it upward */
+    if (edy != null && time > edy) {
+      const k = (time - edy) / DEATH_FADE;
+      if (k >= 1) return null;
+      const st = personLifeVisual(p, edy);
+      return st ? { ...st, opacity: 1 - k } : null;
+    }
     return personLifeVisual(p, time);
   }
   if (!mapShowCards) return null;
@@ -2745,6 +2792,158 @@ function cardYears(p, st) {
   let age = p.a;
   if (age == null && st?.age != null) age = Math.floor(st.age);
   return age != null ? `${span} (${age})` : span;
+}
+
+/* ══════════ households ══════════ */
+/* One grouping model feeds both the map cards and the living figures, so a
+   family reads the same whichever layer you are looking at. */
+
+/* Where a person is standing once they have finished moving. Mid-migration
+   returns null: someone on the road belongs to no household yet. */
+function settledPlace(p, time) {
+  const by = yr(p.b);
+  if (by == null || time < by) return null;
+  const uy = yr(p.u);
+  if (uy != null && p.up && p.up[2] != null && time >= uy) {
+    if (!placesSame(p.bp, p.up) && time < uy + MIG_YRS) return null;
+    return p.up;
+  }
+  return (p.bp && p.bp[2] != null) ? p.bp : null;
+}
+
+/* A child stays part of the parents' household until they grow up, marry,
+   die, or turn up somewhere else — then they get their own card and figure. */
+function isDependentChild(kid, time, parentPl, kidPl) {
+  const by = yr(kid.b);
+  if (by == null || time < by) return false;
+  if (kid.b[3]) return false;                       /* age only approximate */
+  if (time - by >= 18) return false;
+  const uy = yr(kid.u);
+  if (uy != null && time >= uy) return false;
+  const edy = effectiveDeath(kid);
+  if (edy != null && time > edy) return false;
+  return placesSame(parentPl, kidPl);
+}
+
+/* Places compare by name first (see placesSame), so the group key does too. */
+function locKey(pl) { return (pl[0] || '') + '|' + (pl[1] || ''); }
+
+/* get() hands back the raw record, which carries no id of its own; households
+   pass people around by object, so they need the ALL entry instead */
+const BYID = new Map(ALL.map(p => [p.id, p]));
+const getP = id => BYID.get(id);
+
+/* Sosa numbering: the couple (2N, 2N+1) raised person N. */
+function childIdOf(p) { const c = p.id >> 1; return c >= 1 ? c : null; }
+
+/* → { units, locs } where a unit is one household and a loc is one place.
+   opts.absorbKids  children at home stand with their parents (the figures do
+                    this, so a family reads as one silhouette)
+   opts.chain       link each household to the one it raised, so a place shows
+                    a column of generations rather than a row of strangers */
+function buildHouseholds(time, people, placeFn, opts) {
+  const o = opts || {};
+  const shown = new Map();
+  people.forEach(p => {
+    const pl = placeFn(p);
+    if (pl && pl[2] != null) shown.set(p.id, pl);
+  });
+
+  const units = [], unitOf = new Map();
+  const add = u => { u.members.forEach(m => unitOf.set(m.id, u)); units.push(u); return u; };
+
+  /* married couples sharing a roof */
+  ALL.forEach(p => {
+    if (!shown.has(p.id) || unitOf.has(p.id)) return;
+    const mid = SPOUSE[p.id];
+    if (mid == null || !shown.has(mid) || unitOf.has(mid)) return;
+    const uy = yr(p.u);
+    if (uy == null || time < uy) return;
+    if (!placesSame(shown.get(p.id), shown.get(mid))) return;
+    const q = getP(mid);
+    if (!q) return;
+    const male = p.s === 'F' ? q : p, female = p.s === 'F' ? p : q;
+    add({ kind: 'couple', pl: shown.get(p.id), adults: [male, female], kids: [],
+          members: [male, female], key: 'c' + Math.min(p.id, mid), uy });
+  });
+
+  /* everyone else opens as their own household */
+  ALL.forEach(p => {
+    if (!shown.has(p.id) || unitOf.has(p.id)) return;
+    add({ kind: 'solo', pl: shown.get(p.id), adults: [p], kids: [],
+          members: [p], key: 's' + p.id });
+  });
+
+  /* dependent children fold into their parents', oldest generation first so a
+     parent always claims their child before that child claims a grandchild */
+  if (o.absorbKids) {
+    units.slice().sort((a, b) => (b.adults[0].G || 0) - (a.adults[0].G || 0)).forEach(u => {
+      if (u.dropped) return;
+      const cid = childIdOf(u.adults[0]);
+      if (cid == null || !has(cid) || !shown.has(cid)) return;
+      const ku = unitOf.get(cid);
+      /* only a child who is still a household of one can be absorbed */
+      if (!ku || ku === u || ku.dropped || ku.kind !== 'solo' || ku.kids.length) return;
+      const kid = getP(cid);
+      if (!kid || !isDependentChild(kid, time, u.pl, shown.get(cid))) return;
+      u.kids.push(kid);
+      u.members.push(kid);
+      ku.dropped = true;
+      unitOf.set(cid, u);
+    });
+  }
+
+  const live = units.filter(u => !u.dropped);
+  /* a stable sort key keeps stacks from reshuffling as years tick by */
+  live.forEach(u => { u.sort = Math.min(...u.members.map(m => m.id)); });
+
+  const groups = o.chain ? chainColumns(live, unitOf) : live.map(u => ({
+    key: u.key, pl: u.pl, units: [u], sort: u.sort
+  }));
+
+  const locs = [];
+  const byKey = new Map();
+  groups.forEach(c => {
+    const k = locKey(c.pl);
+    let g = byKey.get(k);
+    if (!g) { g = { key: k, name: c.pl[0] || '', dep: c.pl[1] || '', pl: c.pl, cols: [], units: [] };
+              byKey.set(k, g); locs.push(g); }
+    g.cols.push(c);
+    c.units.forEach(u => g.units.push(u));
+  });
+  locs.forEach(g => g.cols.sort((a, b) => a.sort - b.sort));
+  locs.sort((a, b) => a.key < b.key ? -1 : 1);
+  return { units: live, locs, unitOf, shown };
+}
+
+/* Thread each household to the one it raised, as long as both stayed put, so
+   one place shows a family growing downward instead of a row of look-alikes.
+   A column is keyed on its youngest household: ancestors die off the top, and
+   keying on the tail keeps the column the same object while they do. */
+function chainColumns(live, unitOf) {
+  live.forEach(u => {
+    const cid = childIdOf(u.adults[0]);
+    const cu = cid != null ? unitOf.get(cid) : null;
+    if (cu && cu !== u && !cu.dropped && locKey(cu.pl) === locKey(u.pl)) u.childUnit = cu;
+  });
+  /* a household can be the child of at most one of the couples above it */
+  const claimed = new Set();
+  live.forEach(u => {
+    if (!u.childUnit) return;
+    if (claimed.has(u.childUnit.key)) { u.childUnit = null; return; }
+    claimed.add(u.childUnit.key);
+    u.childUnit.parentUnit = u;
+  });
+  const cols = [];
+  live.forEach(u => {
+    if (u.parentUnit) return;
+    const chain = [], seen = new Set();
+    let c = u;
+    while (c && !seen.has(c.key)) { seen.add(c.key); chain.push(c); c = c.childUnit; }
+    const tail = chain[chain.length - 1];
+    cols.push({ key: tail.key, pl: u.pl, units: chain, sort: tail.sort });
+  });
+  return cols;
 }
 
 /* ══════════ living layer ══════════ */
@@ -2796,12 +2995,15 @@ function livingRenderable(p, time) {
   return edy == null || time <= edy + DEATH_FADE;
 }
 
-function livingStage(age, ev, time) {
+/* withKid: the child is already standing in this household, so the parent is
+   drawn on their own — the two-figure glyph is for a young child living
+   somewhere else, where nothing else on the map would show them */
+function livingStage(age, ev, time, withKid) {
   if (age == null) return 'adult';
   if (age < 3) return 'infant';
   if (age < 13) return 'child';
   if (age < 18) return 'youth';
-  if (age < 60 && ev.kidY != null && time >= ev.kidY && time - ev.kidY < 10) return 'parent';
+  if (!withKid && age < 60 && ev.kidY != null && time >= ev.kidY && time - ev.kidY < 10) return 'parent';
   if (age >= 60) return 'elder';
   return 'adult';
 }
@@ -2818,15 +3020,6 @@ function coreRadius(age) {
 function mixHex(a, b, k) {
   const ca = hex2rgb(a), cb = hex2rgb(b);
   return rgb2hex([0, 1, 2].map(i => ca[i] + (cb[i] - ca[i]) * k));
-}
-
-function arcPath(r, frac) {
-  const f = Math.max(0, Math.min(1, frac));
-  const rr = r.toFixed(2), top = (-r).toFixed(2);
-  if (f >= 0.999) return `M 0 ${top} A ${rr} ${rr} 0 1 1 0 ${rr} A ${rr} ${rr} 0 1 1 0 ${top}`;
-  const a = -Math.PI / 2 + f * Math.PI * 2;
-  return `M 0 ${top} A ${rr} ${rr} 0 ${f > 0.5 ? 1 : 0} 1 ` +
-    `${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`;
 }
 
 /* ground arc under a silhouette: chord 2r on a circle of radius 1.25r */
@@ -2862,7 +3055,7 @@ function ensureLivingDefs() {
   if (defs) mapSvg.insertBefore(document.importNode(defs, true), mapSvg.firstChild);
 }
 
-let livingG = null, livingGraves = null, livingLines = null, livingDots = null;
+let livingG = null, livingGraves = null, livingLines = null, livingUnitsG = null, livingDots = null;
 const livingNodes = new Map();
 const graveNodes = new Map();
 
@@ -2871,8 +3064,9 @@ function ensureLivingGroups() {
   livingG = el('g', { id: 'living' });
   livingGraves = el('g', { 'pointer-events': 'none' });
   livingLines = el('g', { 'pointer-events': 'none' });
+  livingUnitsG = el('g', { 'pointer-events': 'none' });
   livingDots = el('g', {});
-  livingG.append(livingGraves, livingLines, livingDots);
+  livingG.append(livingGraves, livingLines, livingUnitsG, livingDots);
 }
 
 function livingTheme() {
@@ -2966,57 +3160,49 @@ function updateLivingNode(p, ctx) {
   const r = coreRadius(age) * (0.25 + 0.75 * pop);
   const base = p.s === 'F' ? '#C0605A' : '#6E9CBF';
   const fill = mixHex(base, '#7C8797', age == null ? 0 : Math.max(0, Math.min(0.5, (age - 45) / 80)));
-  const sil = LIVING_STYLE === 'silhouette';
   const evNow = activeLifeEvent(ev, time);
   const catCol = ev.cat ? (CATC[ev.cat] || th.chalk2) : th.chalk2;
+  /* household slot: members of one family share a plinth, so their figures
+     shrink a little and the child sits smaller still */
+  const slot = ctx.slots ? ctx.slots.get(p.id) : null;
+  const figK = slot ? slot.figK : 1;
 
-  /* core / figure */
-  const figSize = (10 + r * 1.1) * (0.3 + 0.7 * pop);
+  /* figure */
+  const figSize = (10 + r * 1.1) * (0.3 + 0.7 * pop) * figK;
   const feet = figSize * 0.115, head = -figSize * 0.78;
-  if (sil) {
-    sa(n.core, 'r', '0');
-    sa(n.fig, 'href', '#sil-' + livingStage(age, ev, time));
-    sa(n.fig, 'width', figSize.toFixed(2));
-    sa(n.fig, 'height', figSize.toFixed(2));
-    sa(n.fig, 'x', (-figSize / 2).toFixed(2));
-    sa(n.fig, 'y', (-figSize * 0.86).toFixed(2));
-    scol(n.fig, fill);
-    sa(n.fig, 'opacity', (0.94 * alive).toFixed(3));
-  } else {
-    sa(n.fig, 'opacity', '0');
-    sa(n.core, 'r', r.toFixed(2));
-    sa(n.core, 'fill', fill);
-    sa(n.core, 'fill-opacity', (0.9 * alive).toFixed(3));
-    sa(n.core, 'stroke', th.chalk);
-    sa(n.core, 'stroke-width', '0.7');
-    sa(n.core, 'stroke-opacity', (0.8 * alive).toFixed(3));
-  }
+  sa(n.core, 'r', '0');
+  sa(n.fig, 'href', '#sil-' + livingStage(age, ev, time, slot && slot.hasKid));
+  sa(n.fig, 'width', figSize.toFixed(2));
+  sa(n.fig, 'height', figSize.toFixed(2));
+  sa(n.fig, 'x', (-figSize / 2).toFixed(2));
+  sa(n.fig, 'y', (-figSize * 0.86).toFixed(2));
+  scol(n.fig, fill);
+  sa(n.fig, 'opacity', (0.94 * alive).toFixed(3));
 
-  /* age ring — solid when the death is recorded, dotted when it is a guess */
+  /* age ring — solid when the death is recorded, dotted when it is a guess.
+     Inside a household the shared plinth carries the ground, so the personal
+     arc is dropped to keep the group reading as one silhouette. */
   const span = (ev.edy != null && ev.by != null) ? Math.max(1, ev.edy - ev.by) : null;
   const frac = span ? Math.min(1, Math.max(0, (Math.min(time, ev.edy) - ev.by) / span)) : 0;
   const sure = ev.certain && !ev.approxBirth;
-  const ringR = sil ? figSize * 0.44 : r + 3;
-  if (lod > 0) {
-    sa(n.ring, 'd', sil ? groundPath(ringR, feet) : arcPath(ringR, frac));
-    if (sil) {
-      const glen = GROUND_LEN_K * ringR;
-      sa(n.ring, 'stroke-dasharray', `${(glen * frac).toFixed(2)} ${glen.toFixed(2)}`);
-    } else {
-      sa(n.ring, 'stroke-dasharray', sure ? 'none' : '0.9 1.7');
-    }
+  const ringR = figSize * 0.44;
+  if (lod > 0 && !(slot && slot.grouped)) {
+    sa(n.ring, 'd', groundPath(ringR, feet));
+    const glen = GROUND_LEN_K * ringR;
+    sa(n.ring, 'stroke-dasharray', `${(glen * frac).toFixed(2)} ${glen.toFixed(2)}`);
     sa(n.ring, 'stroke', sure ? th.chalk2 : th.chalk3);
     sa(n.ring, 'stroke-width', '0.85');
     sa(n.ring, 'opacity', ((sure ? 0.72 : 0.6) * alive).toFixed(3));
   } else sa(n.ring, 'opacity', '0');
 
-  /* wedding band, drawn on over BAND_YRS */
+  /* wedding band, drawn on over BAND_YRS. A couple standing together gets the
+     entangled pair of rings from the household chrome instead. */
   const wed = ev.uy != null ? phase(time, ev.uy, BAND_YRS) : null;
-  if (wed != null && lod > 0) {
-    const br = sil ? 2.1 : r + 1.7;
+  if (wed != null && lod > 0 && !(slot && slot.coupled)) {
+    const br = 2.1;
     const circ = 2 * Math.PI * br;
     sa(n.band, 'r', br.toFixed(2));
-    sa(n.band, 'cy', sil ? (head - br - 1).toFixed(2) : '0');
+    sa(n.band, 'cy', (head - br - 1).toFixed(2));
     sa(n.band, 'stroke-dasharray', circ.toFixed(1));
     sa(n.band, 'stroke-dashoffset', (circ * (1 - (REDUCED_MOTION ? 1 : wed))).toFixed(1));
     sa(n.band, 'opacity', (0.85 * alive).toFixed(3));
@@ -3027,7 +3213,7 @@ function updateLivingNode(p, ctx) {
   if (trade && lod > 0) {
     const tp = REDUCED_MOTION ? 1 : (phase(time, ev.tradeY, 1.5) ?? 0);
     const gs = 8 * (0.5 + 0.5 * tp);
-    const sx = sil ? ringR + 1.2 : ringR + 1.4, sy = sil ? -r - 3.5 : -ringR - 1.4;
+    const sx = ringR + 1.2, sy = -r - 3.5;
     sa(n.sigil, 'href', '#sg-' + ev.cat);
     sa(n.sigil, 'width', gs.toFixed(2));
     sa(n.sigil, 'height', gs.toFixed(2));
@@ -3038,13 +3224,13 @@ function updateLivingNode(p, ctx) {
   } else sa(n.sigil, 'opacity', '0');
 
   /* death: a stone cross for a recorded burial, dust for an estimated one */
-  const cy0 = sil ? -figSize * 0.33 : 0;
+  const cy0 = -figSize * 0.33;
   if (dead && ev.certain) {
     const cs = 7.5 * (0.55 + 0.45 * dphase);
     sa(n.cross, 'width', cs.toFixed(2));
     sa(n.cross, 'height', cs.toFixed(2));
     sa(n.cross, 'x', (-cs / 2).toFixed(2));
-    sa(n.cross, 'y', (sil ? head - cs * 0.75 : -cs - r - 1).toFixed(2));
+    sa(n.cross, 'y', (head - cs * 0.75).toFixed(2));
     scol(n.cross, th.chalk2);
     sa(n.cross, 'opacity', (0.9 - 0.45 * dphase).toFixed(3));
     sa(n.dust, 'opacity', '0');
@@ -3074,7 +3260,7 @@ function updateLivingNode(p, ctx) {
   /* selection */
   if (SEL === p.id) {
     sa(n.sel, 'cy', cy0.toFixed(2));
-    sa(n.sel, 'r', (sil ? figSize * 0.56 : ringR + 2.6).toFixed(2));
+    sa(n.sel, 'r', (figSize * 0.56).toFixed(2));
     sa(n.sel, 'stroke', th.chalk);
     sa(n.sel, 'opacity', '0.9');
   } else sa(n.sel, 'opacity', '0');
@@ -3084,7 +3270,11 @@ function updateLivingNode(p, ctx) {
   if (named) {
     const txt = (firstGiven(p) || p.n).slice(0, 10);
     if (n.label.textContent !== txt) n.label.textContent = txt;
-    sa(n.label, 'x', (ringR + 3).toFixed(1));
+    /* inside a household the names fan out to the side the figure stands on,
+       so a couple's two labels never land on top of each other */
+    const lx = slot && slot.labelSide < 0 ? -(ringR + 3) : (ringR + 3);
+    sa(n.label, 'text-anchor', slot && slot.labelSide < 0 ? 'end' : 'start');
+    sa(n.label, 'x', lx.toFixed(1));
     sa(n.label, 'y', (cy0 + 3 * ctx.labelScale).toFixed(2));
     sa(n.label, 'font-size', (7 * ctx.labelScale).toFixed(2));
     sa(n.label, 'fill', th.chalk);
@@ -3092,19 +3282,27 @@ function updateLivingNode(p, ctx) {
   } else sa(n.label, 'opacity', '0');
 
   sa(n.hit, 'cy', cy0.toFixed(2));
-  sa(n.hit, 'r', Math.max(7, sil ? figSize * 0.5 : ringR + 2).toFixed(1));
+  sa(n.hit, 'r', Math.max(5.5, figSize * 0.5).toFixed(1));
 }
 
 function drawLivingLines(shown, ctx) {
-  const { time, offMap, pos, th, lod } = ctx;
+  const { time, offMap, pos, slots, th, lod } = ctx;
   livingLines.textContent = '';
+  /* two people seated in one household need no link drawn between them —
+     the shared plinth and the rings already say it */
+  const sameUnit = (a, b) => {
+    const x = slots && slots.get(a), y = slots && slots.get(b);
+    return !!(x && y && x.unit && x.unit === y.unit);
+  };
 
   shown.forEach(p => {
     if (!pos.has(p.id)) return;
     const mig = livingMigState(p, time, offMap);
     if (!mig) return;
     if (mig.t >= 1 || REDUCED_MOTION) {
-      migCurve(livingLines, mig.x0, mig.y0, mig.x1, mig.y1, mig.col, 0.3, 0.9);
+      /* once settled, land the trail on the seat they actually took */
+      const end = pos.get(p.id);
+      migCurve(livingLines, mig.x0, mig.y0, end[0], end[1], mig.col, 0.3, 0.9);
       return;
     }
     /* comet: a short lit segment trailing the traveller */
@@ -3126,6 +3324,7 @@ function drawLivingLines(shown, ctx) {
     shown.forEach(p => {
       const ev = LIFE_EV.get(p.id);
       if (!ev || ev.childId == null) return;
+      if (sameUnit(p.id, ev.childId)) return;
       const a = pos.get(p.id), b = pos.get(ev.childId);
       if (!a || !b) return;
       const cev = LIFE_EV.get(ev.childId);
@@ -3148,6 +3347,7 @@ function drawLivingLines(shown, ctx) {
     if (!sid || linked.has(p.id) || linked.has(sid)) return;
     const uy = yr(p.u);
     if (!uy || time < uy) return;
+    if (sameUnit(p.id, sid)) { linked.add(p.id); linked.add(sid); return; }
     const a = pos.get(p.id), b = pos.get(sid);
     if (!a || !b) return;
     linked.add(p.id); linked.add(sid);
@@ -3261,18 +3461,114 @@ function resetLivingNodes() {
   livingNodes.clear();
 }
 
-function setLivingStyle(v) {
-  if (LIVING_STYLE === v) return;
-  LIVING_STYLE = v;
-  localStorage.setItem('boillet-living-style', v);
-  resetLivingNodes();
-  drawMapChips();
-  drawMapLegend();
-  drawMap();
+/* household seating on the map: a family stands shoulder to shoulder, and
+   separate households at one place queue up above and below each other */
+const HH_ROW = 16, HH_ADULT_W = 9, HH_KID_W = 7;
+
+function livingLayout(time) {
+  const shown = ALL.filter(p => livingRenderable(p, time));
+  const settled = [], moving = [];
+  shown.forEach(p => (settledPlace(p, time) ? settled : moving).push(p));
+
+  const hh = buildHouseholds(time, settled, p => settledPlace(p, time), { absorbKids: true });
+  const pos = new Map(), slots = new Map(), units = [];
+
+  hh.locs.forEach(g => {
+    const [cx, cy] = prj(g.pl[2], g.pl[3]);
+    const n = g.units.length;
+    g.units.forEach((u, i) => {
+      const uy = cy + (i - (n - 1) / 2) * HH_ROW;
+      const w = u.adults.length * HH_ADULT_W + u.kids.length * HH_KID_W;
+      const grouped = u.members.length > 1;
+      const coupled = u.kind === 'couple';
+      let x = cx - w / 2;
+      const adultXs = [];
+      u.adults.forEach((m, j) => {
+        const mx = x + HH_ADULT_W / 2; x += HH_ADULT_W;
+        adultXs.push(mx);
+        pos.set(m.id, [mx, uy]);
+        slots.set(m.id, { grouped, coupled, figK: grouped ? 0.92 : 1, unit: u.key,
+                          hasKid: u.kids.length > 0,
+                          labelSide: (u.adults.length > 1 && j === 0) ? -1 : 1 });
+      });
+      const kidXs = [];
+      u.kids.forEach(k => {
+        const kx = x + HH_KID_W / 2; x += HH_KID_W;
+        kidXs.push(kx);
+        pos.set(k.id, [kx, uy]);
+        slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key, labelSide: 1 });
+      });
+      units.push({ u, cx, cy: uy, w, grouped, coupled, adultXs, kidXs });
+    });
+  });
+
+  /* anyone mid-move keeps the old spiral offsets: they belong to no household
+     until the curve finishes, so they must not sit on top of one another */
+  const pairs = [];
+  moving.forEach(p => {
+    pairs.push({ id: p.id, pl: p.bp });
+    if (yr(p.u) && p.up?.[2] && time >= yr(p.u)) pairs.push({ id: p.id, pl: p.up });
+  });
+  const offMap = buildDotOffsets(pairs);
+  moving.forEach(p => {
+    const xy = livingXY(p, time, offMap);
+    if (!xy) return;
+    pos.set(p.id, xy);
+    slots.set(p.id, { grouped: false, coupled: false, figK: 1, unit: null, labelSide: 1 });
+  });
+
+  return { shown, pos, slots, units, offMap };
+}
+
+/* the chrome that turns adjacent figures into one silhouette: a shared plinth,
+   the couple's two entangled rings, and a tick separating the children */
+function drawHouseholdChrome(layout, ctx) {
+  livingUnitsG.textContent = '';
+  const { th, lod, time, dim } = ctx;
+  if (lod < 1) return;
+  layout.units.forEach(un => {
+    if (!un.grouped) return;
+    const dull = dim && !un.u.members.some(m => dim.has(m.id)) ? DIM_OP : 1;
+    const y = un.cy + 1.5, half = un.w / 2 - 1;
+
+    livingUnitsG.appendChild(el('path', {
+      d: `M ${(un.cx - half).toFixed(1)} ${y.toFixed(1)} Q ${un.cx.toFixed(1)} ` +
+         `${(y + 1.5).toFixed(1)} ${(un.cx + half).toFixed(1)} ${y.toFixed(1)}`,
+      fill: 'none', stroke: th.chalk2, 'stroke-width': 0.9, 'stroke-linecap': 'round',
+      opacity: (0.5 * dull).toFixed(3)
+    }));
+
+    if (un.coupled && un.adultXs.length === 2) {
+      const mx = (un.adultXs[0] + un.adultXs[1]) / 2, my = un.cy - 11.5;
+      const wp = un.u.uy != null ? (phase(time, un.u.uy, BAND_YRS) ?? 0) : 1;
+      const op = (0.92 * dull * (REDUCED_MOTION ? 1 : wp)).toFixed(3);
+      if (+op > 0.01) {
+        const r = 1.55, d = 1.2;
+        const rg = el('g', { fill: 'none', stroke: th.gold, 'stroke-width': 0.55, opacity: op });
+        rg.appendChild(el('circle', { cx: (mx - d).toFixed(2), cy: my.toFixed(2), r: r }));
+        rg.appendChild(el('circle', { cx: (mx + d).toFixed(2), cy: my.toFixed(2), r: r }));
+        /* the left ring's near arc, redrawn last, so the two read as linked */
+        const ax = (mx - d + r * 0.5).toFixed(2);
+        rg.appendChild(el('path', {
+          d: `M ${ax} ${(my - r * 0.866).toFixed(2)} A ${r} ${r} 0 0 1 ${ax} ${(my + r * 0.866).toFixed(2)}`
+        }));
+        livingUnitsG.appendChild(rg);
+      }
+    }
+
+    if (un.kidXs.length && un.adultXs.length) {
+      const sx = (un.adultXs[un.adultXs.length - 1] + un.kidXs[0]) / 2;
+      livingUnitsG.appendChild(el('line', {
+        x1: sx.toFixed(1), y1: (un.cy - 6.5).toFixed(1),
+        x2: sx.toFixed(1), y2: (un.cy + 0.5).toFixed(1),
+        stroke: th.chalk3, 'stroke-width': 0.6, opacity: (0.45 * dull).toFixed(3)
+      }));
+    }
+  });
 }
 
 function updateLivingLayer() {
-  if (!mapLiving) { hideLifeTicker(); return; }
+  if (!mapLiving) { hideLifeTicker(); mapObstacles = []; return; }
   ensureLivingDefs();
   ensureLivingGroups();
   if (livingG.parentNode !== mapG) mapG.appendChild(livingG);
@@ -3282,77 +3578,568 @@ function updateLivingLayer() {
   const lod = currentLod();
   livingLod = lod;
   livingK = zpMap.k;
-  const offMap = buildLivingOffsets(time);
-  const shown = ALL.filter(p => livingRenderable(p, time));
-  const pos = new Map();
-  shown.forEach(p => {
-    const xy = livingXY(p, time, offMap);
-    if (xy) pos.set(p.id, xy);
-  });
 
+  const layout = livingLayout(time);
+  const { shown, pos, slots } = layout;
   const dim = SEL != null ? (selPath || lineageOf(SEL)) : null;
 
   /* labels are annotations, not map objects: keep them a constant size on screen */
   const labelScale = mapFitK > 0 ? Math.min(1, mapFitK / zpMap.k) : 1;
-  const ctx = { time, offMap, pos, th, lod, dim, labelScale };
+  const ctx = { time, offMap: layout.offMap, pos, slots, th, lod, dim, labelScale };
   drawLivingLines(shown, ctx);
+  drawHouseholdChrome(layout, ctx);
   shown.forEach(p => { if (pos.has(p.id)) updateLivingNode(p, ctx); });
   livingNodes.forEach((n, id) => {
     if (!pos.has(id)) { n.g.remove(); livingNodes.delete(id); }
   });
   updateGraves(time, th, lod, labelScale, dim);
   updateLifeTicker(time);
+  /* the cards steer clear of every figure on the map */
+  mapObstacles = [];
+  pos.forEach(xy => mapObstacles.push([xy[0], xy[1], 11]));
+}
+
+/* ══════════ map card stacks ══════════ */
+
+/* Where a card is pinned on the map. Unlike the figures this never goes null
+   mid-move: a card that hopped onto the road would only read as jitter, so it
+   changes place once, on the wedding, together with the stack it joins. */
+function cardPlaceOf(p, time) {
+  if (mapLiving) {
+    const uy = yr(p.u);
+    if (uy != null && p.up && p.up[2] != null && time >= uy) return p.up;
+  }
+  return (p.bp && p.bp[2] != null) ? p.bp : null;
+}
+
+/* two interlocking gold bands, sitting in the seam between husband and wife */
+const RINGS_SVG =
+  '<svg viewBox="0 0 44 20" width="44" height="20" aria-hidden="true">' +
+  '<g fill="none" stroke="#C9A44E" stroke-width="1.7" stroke-linecap="round">' +
+  '<circle cx="18" cy="10" r="6.4"/><circle cx="26" cy="10" r="6.4"/>' +
+  '<path d="M21.2 4.46A6.4 6.4 0 0 1 21.2 15.54"/></g></svg>';
+
+const CARD_PAD = 15;        /* clearance kept between stacks, screen px */
+const CARD_STANDOFF = 30;   /* how far a stack floats off its anchor */
+const CARD_MAX_OFF = 700;   /* villages cluster tightly; the leader lines
+                               let a stack travel well clear of the pack */
+const CARD_EASE = 0.18;     /* per-frame approach — low enough to look calm */
+const CARD_STEP = 10;       /* and never more than this many px in one frame */
+const CARD_DEADBAND = 0.45; /* below this a stack simply does not move */
+
+const stackNodes = new Map();   /* locKey → stack element */
+const stackState = new Map();   /* locKey → { dx, dy, tx, ty, ix, iy, pinned } */
+const rowHeights = new Map();   /* row signature → natural px height */
+let calloutRows = [];
+let mapCalloutG = null;
+
+function stackAnchorXY(pl) { return prj(pl[2], pl[3]); }
+
+/* dx, dy are the offsets to the box's top-left corner. Anchoring the corner
+   rather than the centre is what makes a stack grow *into* free space: a new
+   generation extends it downward and a second family extends it rightward,
+   with everything already on screen staying exactly where it was. */
+function applyStackTransform(elm, s, w, h) {
+  elm.style.transform =
+    `scale(var(--map-inv)) translate(${s.dx.toFixed(1)}px,${s.dy.toFixed(1)}px)`;
+}
+
+/* where a leader line should touch a box, coming in from the anchor */
+function boxEdge(cx, cy, hw, hh, tx, ty) {
+  const dx = tx - cx, dy = ty - cy;
+  if (!dx && !dy) return [cx, cy];
+  const s = Math.min(dx ? hw / Math.abs(dx) : Infinity, dy ? hh / Math.abs(dy) : Infinity);
+  return [cx + dx * Math.min(1, s), cy + dy * Math.min(1, s)];
+}
+
+function ensureCalloutG() {
+  if (mapCalloutG && mapCalloutG.parentNode === mapG) return;
+  mapCalloutG = el('g', { id: 'map-callouts', 'pointer-events': 'none' });
+  mapG.insertBefore(mapCalloutG, mapG.firstChild);
+}
+
+function drawCallouts() {
+  if (!calloutRows.length) { if (mapCalloutG) mapCalloutG.textContent = ''; return; }
+  ensureCalloutG();
+  const ms = mapScaleNow();
+  if (!ms) return;
+  const cs = getComputedStyle(document.documentElement);
+  const ink = cs.getPropertyValue('--chalk3').trim() || '#6E7885';
+  const frag = document.createDocumentFragment();
+  calloutRows.forEach(r => {
+    const s = stackState.get(r.key);
+    if (!s || s.dx == null) return;
+    const cx = r.ax + (s.dx + r.w / 2) / ms, cy = r.ay + (s.dy + r.h / 2) / ms;
+    const hw = r.w / 2 / ms, hh = r.h / 2 / ms;
+    const [ex, ey] = boxEdge(cx, cy, hw, hh, r.ax, r.ay);
+    if (Math.hypot(ex - r.ax, ey - r.ay) * ms < 4) return;
+    frag.appendChild(el('line', {
+      x1: r.ax.toFixed(2), y1: r.ay.toFixed(2), x2: ex.toFixed(2), y2: ey.toFixed(2),
+      stroke: ink, 'stroke-width': 1, opacity: s.pinned ? 0.75 : 0.5
+    }));
+    frag.appendChild(el('circle', {
+      cx: r.ax.toFixed(2), cy: r.ay.toFixed(2), r: (2.2 / ms).toFixed(3),
+      fill: 'none', stroke: ink, 'stroke-width': 1, opacity: 0.7
+    }));
+  });
+  mapCalloutG.textContent = '';
+  mapCalloutG.appendChild(frag);
+}
+
+function mapScaleNow() {
+  const r = mapSvg.getBoundingClientRect();
+  if (!r.width) return 0;
+  return zpMap.k * Math.min(r.width / (MW + 16), r.height / (MH + 16));
+}
+
+/* the mapping the overlay uses, so the solver can talk about screen space:
+   screen = origin + mapUnits * ms, and stack offsets are already screen px */
+function mapOverlayFrame() {
+  const r = mapSvg.getBoundingClientRect();
+  if (!r.width) return null;
+  const s = Math.min(r.width / (MW + 16), r.height / (MH + 16));
+  return {
+    ms: zpMap.k * s, rect: r,
+    ox: (r.width - (MW + 16) * s) / 2 + 8 * s + zpMap.x * s,
+    oy: (r.height - (MH + 16) * s) / 2 + 8 * s + zpMap.y * s
+  };
+}
+
+/* The panels floating over the map are part of the furniture: a stack that
+   slides under the legend or the event stream is simply unreadable. */
+const PANEL_SEL = ['#stage-map .tools-map', '#lg-map', '#tl-chart'];
+function panelBoxes(fr) {
+  const out = [];
+  PANEL_SEL.forEach(sel => {
+    const p = document.querySelector(sel);
+    if (!p || !p.offsetParent) return;
+    const b = p.getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    out.push({
+      x: b.left - fr.rect.left - fr.ox + b.width / 2,
+      y: b.top - fr.rect.top - fr.oy + b.height / 2,
+      w: b.width, h: b.height
+    });
+  });
+  return out;
+}
+
+/* Nudge every stack until nothing overlaps anything, then walk it part of the
+   way there. Seeded from the previous frame and damped, so the field settles
+   instead of twitching while the years run. */
+function solveStacks(rows, fr) {
+  if (!rows.length) return;
+  const ms = fr.ms;
+  const panels = panelBoxes(fr);
+  /* the visible map, expressed in the same space the boxes live in */
+  const lo = { x: 6 - fr.ox, y: 6 - fr.oy };
+  const hi = { x: fr.rect.width - 6 - fr.ox, y: fr.rect.height - 6 - fr.oy };
+  const clamp = b => {
+    b.x = Math.min(Math.max(b.x, lo.x + b.w / 2), Math.max(lo.x + b.w / 2, hi.x - b.w / 2));
+    b.y = Math.min(Math.max(b.y, lo.y + b.h / 2), Math.max(lo.y + b.h / 2, hi.y - b.h / 2));
+  };
+  /* shove a box clear of an immovable rectangle, the short way out */
+  const evict = (b, r) => {
+    const ox = (b.w + r.w) / 2 + 4 - Math.abs(b.x - r.x);
+    const oy = (b.h + r.h) / 2 + 4 - Math.abs(b.y - r.y);
+    if (ox <= 0 || oy <= 0) return;
+    if (ox < oy) b.x += (b.x <= r.x ? -1 : 1) * ox;
+    else b.y += (b.y <= r.y ? -1 : 1) * oy;
+  };
+  let mx = 0, my = 0;
+  rows.forEach(r => { mx += r.ax; my += r.ay; });
+  mx /= rows.length; my /= rows.length;
+
+  const B = rows.map(r => {
+    const s = r.state;
+    const px = r.ax * ms, py = r.ay * ms;
+    /* the resting place: straight out from the middle of the map */
+    let ox = r.ax - mx, oy = r.ay - my;
+    const m = Math.hypot(ox, oy) || 1;
+    const reach = CARD_STANDOFF + Math.max(r.w, r.h) * 0.35;
+    s.ix = (ox / m) * reach - r.w / 2; s.iy = (oy / m) * reach - r.h / 2;
+    if (s.tx == null) { s.tx = s.ix; s.ty = s.iy; }
+    /* the solver reasons about centres; tx/ty are top-left corner offsets */
+    return { r, s, px, py, w: r.w, h: r.h,
+             x: px + s.tx + r.w / 2, y: py + s.ty + r.h / 2 };
+  });
+
+  const obs = mapObstacles.map(o => [o[0] * ms, o[1] * ms, Math.min(o[2] * ms, 30)]);
+
+  for (let it = 0; it < 30; it++) {
+    /* a weak pull home: the leader lines carry the association, so a stack is
+       free to travel a long way rather than crowd its neighbours */
+    B.forEach(b => {
+      if (b.s.pinned) return;
+      b.x += (b.px + b.s.ix + b.w / 2 - b.x) * 0.04;
+      b.y += (b.py + b.s.iy + b.h / 2 - b.y) * 0.04;
+    });
+    for (let i = 0; i < B.length; i++) {
+      for (let j = i + 1; j < B.length; j++) {
+        const a = B[i], c = B[j];
+        const ox = (a.w + c.w) / 2 + CARD_PAD - Math.abs(a.x - c.x);
+        const oy = (a.h + c.h) / 2 + CARD_PAD - Math.abs(a.y - c.y);
+        if (ox <= 0 || oy <= 0) continue;
+        const wa = a.s.pinned ? 0 : 1, wc = c.s.pinned ? 0 : 1, tw = wa + wc;
+        if (!tw) continue;
+        let sx = 0, sy = 0;
+        if (ox < oy) sx = (a.x <= c.x ? -1 : 1) * ox;
+        else sy = (a.y <= c.y ? -1 : 1) * oy;
+        a.x += sx * wa / tw; a.y += sy * wa / tw;
+        c.x -= sx * wc / tw; c.y -= sy * wc / tw;
+      }
+    }
+    if (it >= 2) {
+      B.forEach(b => {
+        if (b.s.pinned) return;
+        for (const o of obs) {
+          const dx = o[0] - b.x, dy = o[1] - b.y;
+          const px = b.w / 2 + o[2] - Math.abs(dx), py = b.h / 2 + o[2] - Math.abs(dy);
+          if (px <= 0 || py <= 0) continue;
+          if (px < py) b.x -= (dx >= 0 ? 1 : -1) * px;
+          else b.y -= (dy >= 0 ? 1 : -1) * py;
+        }
+      });
+    }
+    B.forEach(b => { if (!b.s.pinned) { panels.forEach(r => evict(b, r)); clamp(b); } });
+  }
+
+  B.forEach(b => {
+    const s = b.s;
+    if (s.pinned) { s.dx = s.tx; s.dy = s.ty; return; }
+    let dx = b.x - b.w / 2 - b.px, dy = b.y - b.h / 2 - b.py;
+    const m = Math.hypot(dx, dy);
+    if (m > CARD_MAX_OFF) { dx = dx / m * CARD_MAX_OFF; dy = dy / m * CARD_MAX_OFF; }
+    s.tx = dx; s.ty = dy;
+    if (s.dx == null) { s.dx = dx; s.dy = dy; return; }
+    const ex = s.tx - s.dx, ey = s.ty - s.dy;
+    if (Math.abs(ex) < CARD_DEADBAND && Math.abs(ey) < CARD_DEADBAND) return;
+    /* ease toward the target, but cap the step so a stack whose neighbours
+       just vanished glides into the gap instead of snapping across it */
+    const d = Math.hypot(ex, ey);
+    const k = Math.min(CARD_EASE, CARD_STEP / d);
+    s.dx += ex * k;
+    s.dy += ey * k;
+  });
+}
+
+function wireStackDrag(elm, key) {
+  let pid = null, sx = 0, sy = 0, x0 = 0, y0 = 0, moved = 0, held = false;
+  const rowOf = () => calloutRows.find(r => r.key === key);
+
+  elm.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const s = stackState.get(key);
+    if (!s || s.dx == null) return;
+    pid = e.pointerId; sx = e.clientX; sy = e.clientY;
+    x0 = s.dx; y0 = s.dy; moved = 0; held = false;
+    e.stopPropagation();
+  });
+
+  elm.addEventListener('pointermove', e => {
+    if (pid == null || e.pointerId !== pid) return;
+    const ddx = e.clientX - sx, ddy = e.clientY - sy;
+    moved = Math.max(moved, Math.hypot(ddx, ddy));
+    if (moved <= 3) return;
+    const s = stackState.get(key);
+    if (!s) return;
+    /* capture only once this is really a drag — grabbing the pointer on
+       pointerdown would retarget the click and swallow taps on the cards */
+    if (!held) {
+      held = true;
+      elm.setPointerCapture(pid);
+      elm.classList.add('dragging');
+    }
+    s.pinned = true;
+    s.dx = s.tx = x0 + ddx;
+    s.dy = s.ty = y0 + ddy;
+    const r = rowOf();
+    elm.classList.add('pinned');
+    if (r) applyStackTransform(elm, s, r.w, r.h);
+    drawCallouts();
+    e.preventDefault();
+  });
+
+  const end = e => {
+    if (pid == null || e.pointerId !== pid) return;
+    if (held) { try { elm.releasePointerCapture(pid); } catch (_) {} }
+    pid = null;
+    elm.classList.remove('dragging');
+    if (held) {
+      /* a drag must not also read as a tap on the card underneath */
+      const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+      elm.addEventListener('click', eat, { capture: true, once: true });
+      setTimeout(() => elm.removeEventListener('click', eat, true), 0);
+    }
+  };
+  elm.addEventListener('pointerup', end);
+  elm.addEventListener('pointercancel', end);
+
+  /* double-click the place name to hand the stack back to the layout */
+  elm.addEventListener('dblclick', e => {
+    const s = stackState.get(key);
+    if (!s) return;
+    s.pinned = false;
+    elm.classList.remove('pinned');
+    e.stopPropagation();
+    renderPersonCards();
+  });
+}
+
+function personCardHtml(p, st) {
+  const gv = firstGiven(p);
+  return `<div class="pn">${p.n}${gv ? ' <em>' + gv + '</em>' : ''}</div>` +
+    `<div class="py">${cardYears(p, st)}</div>` +
+    `<div class="pp">${cardPlaceLine(p)}</div>`;
+}
+
+/* a row wrapper lets a card collapse its own height as it fades out, so the
+   people below it slide up instead of snapping */
+function personRow(p) {
+  const row = document.createElement('div');
+  row.className = 'mrow';
+  row.dataset.p = p.id;
+  const card = document.createElement('div');
+  card.className = 'pcard' + (p.s === 'F' ? ' f' : '');
+  card.dataset.id = p.id;
+  card.addEventListener('click', e => { e.stopPropagation(); select(p.id); });
+  row.appendChild(card);
+  mapCardNodes[p.id] = card;
+  return row;
+}
+
+/* Which generations of a column are worth drawing: everything from the oldest
+   one still showing a face down to the youngest. If the generation above the
+   top one has died out, its bar is kept — that bar is the generation, not the
+   people, and losing it would erase the fact that they were ever here. */
+function columnGens(col, vis) {
+  let first = -1, last = -1;
+  col.units.forEach((u, i) => {
+    if (!u.members.some(m => vis.has(m.id))) return;
+    if (first < 0) first = i;
+    last = i;
+  });
+  if (first < 0) return null;
+  return { gens: col.units.slice(first, last + 1), leadSep: first > 0 };
+}
+
+function famSignature(col, vis) {
+  const c = columnGens(col, vis);
+  if (!c) return null;
+  const parts = c.leadSep ? ['sep'] : [];
+  c.gens.forEach((u, i) => {
+    if (i) parts.push('sep');
+    const live = u.members.filter(m => vis.has(m.id));
+    const both = u.kind === 'couple' && u.adults.every(a => vis.has(a.id));
+    u.adults.forEach((a, j) => {
+      if (!vis.has(a.id)) return;
+      parts.push('p' + a.id);
+      if (both && j === 0) parts.push('rings');
+    });
+    u.kids.forEach(k => { if (vis.has(k.id)) parts.push('p' + k.id); });
+    if (!live.length) parts.push('gap');
+  });
+  return parts.join(',');
+}
+
+function sepRow() {
+  const sr = document.createElement('div');
+  sr.className = 'mrow';
+  sr.innerHTML = '<div class="msep"></div>';
+  return sr;
+}
+
+function buildFam(col, vis) {
+  const fam = document.createElement('div');
+  fam.className = 'mfam';
+  fam.dataset.col = col.key;
+  const c = columnGens(col, vis);
+  if (!c) return fam;
+  if (c.leadSep) fam.appendChild(sepRow());
+  c.gens.forEach((u, i) => {
+    if (i) fam.appendChild(sepRow());
+    const both = u.kind === 'couple' && u.adults.every(a => vis.has(a.id));
+    u.adults.forEach((a, j) => {
+      if (!vis.has(a.id)) return;
+      const row = personRow(a);
+      /* husband above wife, edges meeting so the rings sit inside one block */
+      if (both) row.firstChild.classList.add(j === 0 ? 'mtop' : 'mbot');
+      fam.appendChild(row);
+      if (both && j === 0) {
+        const rr = document.createElement('div');
+        rr.className = 'mrow';
+        rr.innerHTML = `<div class="mrings">${RINGS_SVG}</div>`;
+        fam.appendChild(rr);
+      }
+    });
+    u.kids.forEach(k => { if (vis.has(k.id)) fam.appendChild(personRow(k)); });
+  });
+  return fam;
 }
 
 function renderPersonCards() {
   if (!cardsVisible()) {
     mapCardsEl.textContent = '';
     mapCardNodes = {};
+    stackNodes.clear();
+    calloutRows = [];
+    drawCallouts();
     return;
   }
-  const offMap = buildCardOffsets(mapTime);
-  const active = new Set();
+  const time = mapTime;
+  const vis = new Map(), people = [];
   ALL.forEach(p => {
-    const st = cardPasses(p, mapTime);
-    if (!st) return;
-    active.add(p.id);
-    let x, y;
-    if (mapLiving) {
-      const xy = livingXY(p, mapTime, offMap);
-      if (!xy) return;
-      [x, y] = xy;
+    const st = cardPasses(p, time);
+    if (st && cardPlaceOf(p, time)) vis.set(p.id, st);
+  });
+  /* The ledger holds everyone born by now, the dead included: they are what
+     keeps a column's generations threaded together once the top has gone. */
+  ALL.forEach(p => {
+    if (!cardPlaceOf(p, time)) return;
+    const by = yr(p.b);
+    if (by == null || by > time) return;
+    if (!mapShowCards && !vis.has(p.id)) return;
+    people.push(p);
+  });
+
+  const hh = buildHouseholds(time, people, p => cardPlaceOf(p, time), { chain: true });
+  mapCardNodes = {};
+  const live = new Set();
+  const fr = mapOverlayFrame();
+  /* A place you have zoomed past has no business dragging its stack back into
+     view — culling it is what makes zooming in an effective way to declutter. */
+  const inView = pl => {
+    if (!fr) return true;
+    const [x, y] = stackAnchorXY(pl);
+    const sx = fr.ox + x * fr.ms, sy = fr.oy + y * fr.ms;
+    return sx > -140 && sx < fr.rect.width + 140 && sy > -140 && sy < fr.rect.height + 140;
+  };
+
+  /* ── write: build or patch the DOM for every place ── */
+  hh.locs.forEach(g => {
+    g.shownCols = g.cols.filter(c => famSignature(c, vis) != null);
+    if (!g.shownCols.length || !inView(g.pl)) return;
+    live.add(g.key);
+    let stack = stackNodes.get(g.key);
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.className = 'mstack';
+      stack.dataset.key = g.key;
+      stack.innerHTML = '<div class="mstack-box"><div class="mstack-head">' +
+        '<span class="nm"></span><span class="dep"></span></div>' +
+        '<div class="mstack-fams"></div></div>';
+      mapCardsEl.appendChild(stack);
+      stackNodes.set(g.key, stack);
+      wireStackDrag(stack, g.key);
+    }
+    if (!stackState.has(g.key)) stackState.set(g.key, { dx: null, dy: null, tx: null, ty: null, pinned: false });
+
+    const head = stack.querySelector('.mstack-head');
+    const fams = stack.querySelector('.mstack-fams');
+    const sigs = g.shownCols.map(c => c.key + ':' + famSignature(c, vis));
+    const cardCount = g.shownCols.reduce(
+      (n, c) => n + c.units.reduce((k, u) => k + u.members.filter(m => vis.has(m.id)).length, 0), 0);
+    const grouped = cardCount > 1 || g.shownCols.length > 1;
+    stack.classList.toggle('grouped', grouped);
+    head.style.display = grouped ? '' : 'none';
+    if (grouped) {
+      head.querySelector('.nm').textContent = g.name;
+      head.querySelector('.dep').textContent = g.dep;
+    }
+
+    const sig = sigs.join('|');
+    if (fams.dataset.sig !== sig) {
+      fams.textContent = '';
+      g.shownCols.forEach(c => fams.appendChild(buildFam(c, vis)));
+      fams.dataset.sig = sig;
     } else {
-      const pl = p.bp;
-      if (!pl || pl[2] == null) return;
-      [x, y] = mapXY(pl, p.id, offMap);
+      /* same shape: just re-register the cards for this frame */
+      fams.querySelectorAll('.pcard').forEach(c => { mapCardNodes[+c.dataset.id] = c; });
     }
-    let card = mapCardNodes[p.id];
-    if (!card) {
-      card = document.createElement('div');
-      card.className = 'pcard' + (p.s === 'F' ? ' f' : '');
-      card.dataset.id = p.id;
-      card.addEventListener('click', e => { e.stopPropagation(); select(p.id); });
-      mapCardsEl.appendChild(card);
-      mapCardNodes[p.id] = card;
-    }
-    card.style.left = x + 'px';
-    card.style.top = y + 'px';
-    card.style.setProperty('--ps', st.scale.toFixed(3));
-    card.style.setProperty('--pg', st.gray.toFixed(3));
-    card.style.setProperty('--po', st.opacity.toFixed(3));
-    const inLine = !selPath || selPath.has(p.id);
-    card.classList.toggle('sel', SEL === p.id);
-    card.classList.toggle('dim', !!selPath && !inLine);
-    const gv = firstGiven(p);
-    card.innerHTML =
-      `<div class="pn">${p.n}${gv ? ' <em>' + gv + '</em>' : ''}</div>` +
-      `<div class="py">${cardYears(p, st)}</div>` +
-      `<div class="pp">${cardPlaceLine(p)}</div>`;
+
+    let hasSel = false;
+    g.shownCols.forEach(c => c.units.forEach(u => u.members.forEach(m => {
+      const card = mapCardNodes[m.id];
+      if (!card) return;
+      const st = vis.get(m.id);
+      if (!st) return;
+      const html = personCardHtml(m, st);
+      if (card.__html !== html) { card.__html = html; card.innerHTML = html; }
+      card.style.setProperty('--pg', st.gray.toFixed(3));
+      card.style.setProperty('--po', st.opacity.toFixed(3));
+      const inLine = !selPath || selPath.has(m.id);
+      card.classList.toggle('sel', SEL === m.id);
+      card.classList.toggle('dim', !!selPath && !inLine);
+      if (SEL === m.id) hasSel = true;
+    })));
+    stack.classList.toggle('hassel', hasSel);
+    stack.classList.toggle('pinned', !!stackState.get(g.key).pinned);
+    /* left/top sit in map units; the transform then works in screen px */
+    const [ax0, ay0] = stackAnchorXY(g.pl);
+    stack.style.left = ax0 + 'px';
+    stack.style.top = ay0 + 'px';
   });
-  Object.keys(mapCardNodes).forEach(id => {
-    if (!active.has(+id)) { mapCardNodes[id].remove(); delete mapCardNodes[id]; }
+
+  /* the element goes, the placement stays: pan back and a stack you dragged
+     into place is still where you put it */
+  stackNodes.forEach((elm, key) => {
+    if (live.has(key)) return;
+    elm.remove();
+    stackNodes.delete(key);
   });
+
+  /* ── read: natural row heights, then the finished stack boxes ── */
+  const collapsing = [];
+  hh.locs.forEach(g => {
+    if (!live.has(g.key)) return;
+    g.units.forEach(u => u.members.forEach(m => {
+      const card = mapCardNodes[m.id];
+      if (!card) return;
+      const row = card.parentNode;
+      const st = vis.get(m.id);
+      if (!st || st.opacity >= 0.999) { if (row.style.height) row.style.height = ''; return; }
+      const sigk = g.key + '/' + m.id;
+      let nat = rowHeights.get(sigk);
+      if (!nat) { row.style.height = ''; nat = row.offsetHeight; rowHeights.set(sigk, nat); }
+      collapsing.push([row, nat * st.opacity]);
+    }));
+  });
+  collapsing.forEach(([row, h]) => { row.style.height = h.toFixed(1) + 'px'; });
+
+  const rows = [];
+  hh.locs.forEach(g => {
+    if (!live.has(g.key)) return;
+    const stack = stackNodes.get(g.key);
+    const [ax, ay] = stackAnchorXY(g.pl);
+    rows.push({ key: g.key, elm: stack, ax, ay,
+                w: stack.offsetWidth, h: stack.offsetHeight, state: stackState.get(g.key) });
+  });
+
+  /* ── write: solved positions and their leader lines ── */
+  if (fr && fr.ms) solveStacks(rows, fr);
+  rows.forEach(r => { if (r.state.dx != null) applyStackTransform(r.elm, r.state, r.w, r.h); });
+  calloutRows = rows.map(r => ({ key: r.key, ax: r.ax, ay: r.ay, w: r.w, h: r.h }));
+  drawCallouts();
   syncMapOverlay(zpMap);
+  settleStacks(rows);
+}
+
+/* The solver only walks part of the way each pass, which is what keeps the
+   motion calm. When the clock is not running nothing would drive those passes,
+   so keep asking for frames until every stack has come to rest. */
+let cardSettle = 0;
+function settleStacks(rows) {
+  if (cardSettle) return;
+  const moving = rows.some(r => {
+    const s = r.state;
+    return s.dx != null && !s.pinned &&
+      (Math.abs(s.tx - s.dx) > CARD_DEADBAND || Math.abs(s.ty - s.dy) > CARD_DEADBAND);
+  });
+  if (!moving) return;
+  cardSettle = requestAnimationFrame(() => {
+    cardSettle = 0;
+    if (cardsVisible()) renderPersonCards();
+  });
 }
 
 function mapPlaceInsert(g) {
@@ -3405,6 +4192,14 @@ function drawMapPlaces() {
 
   mapPlaceInsert(mapPlacesG);
   mapPlaceInsert(mapLineageG);
+  /* the cards route around the dots they are describing */
+  mapObstacles = [];
+  PLIST.forEach(pl => {
+    const n = pl.ev.filter(e => mapLayers[e.type] && (!e.y || e.y <= mapTime)).length;
+    if (!n) return;
+    const [x, y] = prj(pl.la, pl.lo);
+    mapObstacles.push([x, y, MAP_DOT(n) + 3]);
+  });
 }
 
 function updateMapCount(shown) {
@@ -3591,19 +4386,10 @@ function drawMapChips() {
   div.className = 'chip-div';
   div.setAttribute('aria-hidden', 'true');
   filters.appendChild(div);
-  if (mapLiving) {
-    [['medallion', t('livMedallion')], ['silhouette', t('livSilhouette')]].forEach(([k, lab]) => {
-      mk(filters, lab, LIVING_STYLE === k, () => setLivingStyle(k), t('livStyleHint'));
-    });
-    const div2 = document.createElement('span');
-    div2.className = 'chip-div';
-    div2.setAttribute('aria-hidden', 'true');
-    filters.appendChild(div2);
-  }
   mk(filters, t('cards'), mapShowCards, () => {
     mapShowCards = !mapShowCards;
     drawMapChips(); drawMap();
-  });
+  }, t('stackDrag'));
   document.getElementById('tl-play').textContent = playing ? t('pause') : t('play');
 }
 
@@ -3845,7 +4631,8 @@ function drawMapLegend() {
       `<div>${cross}${t('livCross')}</div>` +
       `<div><i class="leg-curve"></i>${t('livingMig')}</div>` +
       `<div><i class="leg-dash"></i>${t('livingUnion')}</div>` +
-      `<div><i class="leg-fil"></i>${t('livKin')}</div>`;
+      `<div><i class="leg-fil"></i>${t('livKin')}</div>` +
+      `<div><i class="leg-plinth"></i>${t('livHousehold')}</div>`;
   }
   h +=
     `<div class="t" style="margin-top:8px">${t('histLeg')}</div>` +
