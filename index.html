@@ -431,7 +431,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 
 .tl-chart{
   position:absolute;top:10px;right:10px;left:auto;bottom:auto;z-index:24;
-  width:min(390px,calc(100% - 20px));max-height:630px;
+  width:min(390px,calc(100% - 20px));max-height:calc(100% - 20px);
   background:var(--ink1);border:1px solid var(--rule);border-radius:6px;
   box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
 }
@@ -463,22 +463,17 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   position:absolute;left:var(--hist-scale);right:0;top:0;height:100%;z-index:3;
 }
 .hist-ev{
-  position:absolute;left:10px;right:8px;padding:4px 8px 4px 11px;
+  position:absolute;left:26px;right:8px;padding:4px 8px 4px 9px;
   font-family:var(--mono);font-size:11px;line-height:1.35;color:var(--chalk2);
   border-left:2px solid var(--hist-fr);
-  transition:top .08s linear,opacity .12s linear;pointer-events:none;
+  transition:top .22s cubic-bezier(.25,.8,.35,1),opacity .16s linear;pointer-events:none;
   min-height:22px;
 }
 .hist-ev.reg{border-left-color:var(--hist-reg)}
 .hist-ev.loc{border-left-color:var(--hist-loc)}
 .hist-ev.on{color:var(--chalk);opacity:1!important;z-index:2}
+.hist-ev.warp{transition:none!important}
 .hist-line{display:block;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
-.hist-ev .span-bar{
-  position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--hist-fr);opacity:.35;
-}
-.hist-ev.reg .span-bar{background:var(--hist-reg)}
-.hist-ev.loc .span-bar{background:var(--hist-loc)}
-.hist-ev.on .span-bar{opacity:.85}
 
 @media(min-width:760px){
   :root{--bar:58px}
@@ -487,7 +482,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .sheet.on{transform:translateY(0)}
   .grab{display:none}
   .legend{max-width:300px;bottom:16px}
-  .tl-chart{top:10px;right:10px;width:390px;height:min(630px,calc(100% - 20px))}
+  .tl-chart{top:10px;right:10px;width:390px;height:calc(100% - 20px)}
   .hist-viewport{height:auto;flex:1}
   .pcard{width:200px;font-size:15px}
 }
@@ -4882,8 +4877,9 @@ function histLineText(ev) {
   return `${span}${scope}${loc} · ${L === 'fr' ? ev.fr : ev.en}`;
 }
 
-const HIST_SCALE_W = 62, HIST_GAP = 4;
+const HIST_SCALE_W = 62, HIST_GAP = 4, HIST_BOX_L = 26;
 let histEls = null, histLayout = { h:198, center:99, pxYr:6, win:30 };
+let histH = [], histHKey = '', histWarp = [];
 
 function initHistStream() {
   const stream = document.getElementById('hist-stream');
@@ -4893,33 +4889,56 @@ function initHistStream() {
     const node = document.createElement('div');
     node.className = 'hist-ev' + (ev.s === 'reg' ? ' reg' : ev.s === 'loc' ? ' loc' : '');
     node.dataset.i = i;
-    node.innerHTML = `<div class="span-bar"></div><span class="hist-line">${histLineText(ev)}</span>`;
+    node.innerHTML = `<span class="hist-line">${histLineText(ev)}</span>`;
     stream.appendChild(node);
     return node;
   });
+  histHKey = '';
 }
 
+/* Box heights only change when the panel changes width or the language
+   changes, so measure them all in one layout and keep them. Reading
+   offsetHeight per item per frame was forcing forty layouts a frame, which is
+   what made the stream stutter as it rolled. */
+function measureHistHeights(width) {
+  const key = width + '|' + L;
+  if (key === histHKey || !histEls) return;
+  histHKey = key;
+  histEls.forEach(n => { n.style.display = ''; n.style.visibility = 'hidden'; n.style.top = '0px'; });
+  histH = histEls.map(n => n.offsetHeight);
+  histEls.forEach(n => { n.style.display = 'none'; n.style.visibility = ''; });
+}
+
+/* Stacking that only ever pushes downwards makes a crowded decade drift away
+   from its years, and the drift lands on whichever item happens to be lowest.
+   Collect the ones that collide into a block instead and hang the block off
+   the mean of its anchors, so a cluster spreads either side of its date. */
 function layoutHistEvents(items, minGap) {
   if (!items.length) return items;
   items.sort((a, b) => a.anchorY - b.anchorY || a.i - b.i);
-  const placed = [];
+  const blocks = [];
+  const blockTop = list => {
+    let off = 0, sum = 0;
+    for (const x of list) { sum += x.anchorY - x.h / 2 - off; off += x.h + minGap; }
+    return sum / list.length;
+  };
+  const blockH = list => list.reduce((s, x) => s + x.h, 0) + minGap * (list.length - 1);
   for (const it of items) {
-    let top = it.anchorY - it.h / 2;
-    for (;;) {
-      let moved = false;
-      for (const p of placed) {
-        if (top + it.h + minGap > p.top && top < p.top + p.h + minGap) {
-          top = p.top + p.h + minGap;
-          moved = true;
-          break;
-        }
-      }
-      if (!moved) break;
+    let list = [it], top = it.anchorY - it.h / 2, h = it.h;
+    while (blocks.length) {
+      const prev = blocks[blocks.length - 1];
+      if (prev.top + prev.h + minGap <= top) break;
+      blocks.pop();
+      list = prev.list.concat(list);
+      h = blockH(list);
+      top = blockTop(list);
     }
-    it.top = top;
-    it.boxCy = top + it.h / 2;
-    placed.push({ top, h: it.h });
+    blocks.push({ list, top, h });
   }
+  blocks.forEach(b => {
+    let y = b.top;
+    b.list.forEach(x => { x.top = y; x.boxCy = y + x.h / 2; y += x.h + minGap; });
+  });
   return items;
 }
 
@@ -4956,13 +4975,29 @@ function drawHistOverlay(overlay, layout, items, t) {
     tx.textContent = y;
     overlay.appendChild(tx);
   }
-  const calloutX = HIST_SCALE_W + 10;
+  const calloutX = HIST_SCALE_W + 8;
   const woad = getComputedStyle(document.documentElement).getPropertyValue('--woad').trim() || '#6E9CBF';
   items.forEach(it => {
     if (it.opacity < .04) return;
     const col = histScopeColor(it.ev.s);
+    const [y0, y1] = histSpan(it.ev);
+    /* a war that ran twenty years is a length of the scale, not a taller box —
+       inflating the box was what pushed its neighbours out of reach of their
+       own dates */
+    if (y1 > y0) {
+      overlay.appendChild(el('line', {
+        x1: axisX, y1: (center + (y0 - t) * pxYr).toFixed(1),
+        x2: axisX, y2: (center + (y1 - t) * pxYr).toFixed(1),
+        stroke: col, 'stroke-width': it.on ? 3.2 : 2.4, 'stroke-linecap': 'round',
+        opacity: (it.on ? .7 : .3) * it.opacity
+      }));
+    }
+    /* elbow into the box: straight out from the axis, then a diagonal, then a
+       short run into the text, so the eye can follow it back to the year */
+    const midX = HIST_SCALE_W + HIST_BOX_L - 6;
     overlay.appendChild(el('polyline', {
-      points: `${axisX},${it.anchorY.toFixed(1)} ${calloutX},${it.boxCy.toFixed(1)} ${calloutX + 6},${it.boxCy.toFixed(1)}`,
+      points: `${axisX},${it.anchorY.toFixed(1)} ${calloutX},${it.anchorY.toFixed(1)} ` +
+              `${midX},${it.boxCy.toFixed(1)} ${HIST_SCALE_W + HIST_BOX_L},${it.boxCy.toFixed(1)}`,
       fill: 'none', stroke: col, 'stroke-width': it.on ? 1.1 : .65,
       opacity: (it.on ? .85 : .45) * it.opacity, 'stroke-linejoin': 'round'
     }));
@@ -4983,48 +5018,65 @@ function updateHistStream() {
   if (!stream || !viewport || !histEls) return;
   const h = viewport.clientHeight || 198;
   const center = h / 2;
-  const pxYr = Math.max(4, Math.min(8, h / 40));
+  /* a taller scale spreads the anchors, which is what keeps a callout short
+     enough to follow back to its year */
+  const pxYr = Math.max(5, Math.min(16, h / 34));
   const win = Math.ceil(h / pxYr / 2) + 8;
   histLayout = { h, center, pxYr, win };
+  measureHistHeights(viewport.clientWidth);
   const t = mapTime;
   const active = [];
 
   HIST.forEach((ev, i) => {
     const node = histEls[i];
     const [y0, y1] = histSpan(ev);
-    if (t < y0 - win || t > y1 + win) { node.style.display = 'none'; return; }
-    node.style.display = '';
-    node.style.visibility = 'hidden';
-    node.style.top = '0';
-    node.style.height = 'auto';
-    const line = node.querySelector('.hist-line');
-    if (line) line.textContent = histLineText(ev);
+    if (t < y0 - win || t > y1 + win) {
+      if (node.style.display !== 'none') { node.style.display = 'none'; node.dataset.off = '1'; }
+      return;
+    }
     const mid = (y0 + y1) / 2;
     const anchorY = center + (mid - t) * pxYr;
-    const spanH = Math.max(22, (y1 - y0 + 1) * pxYr);
-    const contentH = node.offsetHeight;
-    const ht = Math.max(spanH, contentH);
     const on = t >= y0 && t <= y1;
     const dist = on ? 0 : Math.min(Math.abs(t - y0), Math.abs(t - y1));
-    let opacity = on ? 1 : Math.max(0, 1 - dist / 25);
-    active.push({ node, ev, i, anchorY, h: ht, on, opacity, dist });
+    /* One curve for how present an event is: nothing at the edge of the
+       window, full within a dozen years of now. It drives both the fade and
+       the room the item claims, so an item arrives at no width and no ink and
+       grows into both — nothing appears out of nowhere and shoves the
+       readable ones off their dates. */
+    const fade = Math.max(0, Math.min(1, (win - dist) / Math.max(1, win - 12)));
+    const box = histH[i] || 22;
+    active.push({ node, ev, i, anchorY, box, h: box * Math.max(0.1, fade),
+                  on, opacity: fade, dist });
   });
 
   layoutHistEvents(active, HIST_GAP);
 
+  /* An item coming back from hidden still carries the top it had when it left,
+     and the transition would fly it across the panel to get here — that was
+     the phantom drifting through the stream. Land it without a transition. */
+  histWarp.length = 0;
   active.forEach(it => {
     const { node, on, opacity } = it;
-    node.style.top = it.top.toFixed(2) + 'px';
-    node.style.height = 'auto';
-    node.style.visibility = '';
-    it.boxCy = it.top + node.offsetHeight / 2;
+    if (node.dataset.off === '1' || node.style.display === 'none') {
+      node.classList.add('warp');
+      node.style.display = '';
+      node.dataset.off = '0';
+      histWarp.push(node);
+    }
+    /* the box is centred in the room it claimed, so it grows about its middle */
+    const boxTop = it.top + (it.h - it.box) / 2;
+    node.style.top = boxTop.toFixed(2) + 'px';
     node.classList.toggle('on', on);
-    const edge = Math.min(it.top, h - it.top - node.offsetHeight);
+    const edge = Math.min(boxTop, h - boxTop - it.box);
     let op = opacity;
     if (edge < 28) op *= Math.max(0, edge / 28);
     it.opacity = op;
     node.style.opacity = op.toFixed(3);
   });
+  if (histWarp.length) {
+    const warped = histWarp.slice();
+    requestAnimationFrame(() => warped.forEach(n => n.classList.remove('warp')));
+  }
 
   if (overlay) drawHistOverlay(overlay, histLayout, active, t);
 }
