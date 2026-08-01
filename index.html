@@ -734,7 +734,7 @@ const T = {
     selfL:'Vous êtes ici', father:'Père', mother:'Mère',
     places:'Lieux', births:'Naissances', unions:'Unions', deaths:'Décès', migr:'Migrations', play:'▶', pause:'❙❙',
     upto:'Jusqu’en', people:'personnes', person:'personne', events:'actes',
-    mapLeg:'Date médiane des actes', mapHint:'Touchez un point ou une fiche pour voir les détails.',
+    mapLeg:'Date médiane des actes', mapHint:'Touchez un point ou une fiche pour voir les détails. Espace lance et arrête la lecture, ← et → avancent d’une année (10 avec Maj).',
     allP:'Tous', cards:'Fiches', speed:'Vitesse', histLeg:'Événements', histFr:'France', histReg:'Normandie & Picardie', histLoc:'Local',
     sCtx:'Contexte historique', noCtx:'Aucun événement recensé sur cette période.', ctxLife:'Vie personnelle', ctxAge:n=>`${n} ans`,
     living:'Vivants', livingHint:'Sans date de décès → âge médian',
@@ -776,7 +776,7 @@ const T = {
     selfL:'You are here', father:'Father', mother:'Mother',
     places:'Places', births:'Births', unions:'Marriages', deaths:'Deaths', migr:'Migrations', play:'▶', pause:'❙❙',
     upto:'Up to', people:'people', person:'person', events:'records',
-    mapLeg:'Median date of records', mapHint:'Tap a dot or card to see details.',
+    mapLeg:'Median date of records', mapHint:'Tap a dot or card to see details. Space plays and pauses, ← and → step a year (10 with shift).',
     allP:'All', cards:'Cards', speed:'Speed', histLeg:'Events', histFr:'France', histReg:'Normandy & Picardy', histLoc:'Local',
     sCtx:'Historical context', noCtx:'No recorded events for this period.', ctxLife:'Personal life', ctxAge:n=>`${n} years`,
     living:'Living', livingHint:'No death date → median age',
@@ -5532,7 +5532,25 @@ document.getElementById('zfit').onclick = () => { zpTreeActive().reset(); closeS
 document.getElementById('mzin').onclick  = () => zpMap.zoom(1.5);
 document.getElementById('mzout').onclick = () => zpMap.zoom(1/1.5);
 document.getElementById('mzfit').onclick = () => { zpMap.reset(); fitMapCore(); };
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+/* transport keys. They belong to the map, and only when nothing is taking
+   typing — the slider and the search box keep their own arrow behaviour. */
+function typingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable;
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeSheet(); return; }
+  if (VIEW !== 'map' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (typingTarget(e.target)) return;
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    togglePlay();
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    stepYear((e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 10 : 1));
+  }
+});
 window.addEventListener('resize', () => {
   /* every cached page-to-element mapping is stale once the page resizes */
   [zpTree, zpTimeline, zpMap].forEach(z => z && z.invalidate && z.invalidate());
