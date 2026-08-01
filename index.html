@@ -488,6 +488,76 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .search input{width:104px}
   .chipset button{padding:7px 7px;font-size:9.5px}
 }
+
+/* ---------- phones ----------
+   The desktop map lays three floating panels over the chart, which works at
+   1700px and buries it at 390px. On a phone the panels dock and collapse: the
+   chips scroll along the top, the player sits on the bottom edge with the
+   event stream folded behind its header, and the legend hides behind a button.
+   Everything above 760px is untouched. */
+.legend-toggle{display:none}
+/* a finger needs 44px whatever the screen is wide, so this keys off the
+   pointer rather than the viewport — tablets get it too */
+@media(pointer:coarse){
+  .chipset button{padding:11px 12px;font-size:11px;min-height:44px}
+  .tabs button{min-height:48px}
+  .lang button{min-width:44px;min-height:38px;font-size:13px}
+  .theme-btn{min-width:44px;min-height:38px;font-size:15px}
+  .search input{min-height:40px;font-size:15px}
+  .zoomer button{min-width:46px;min-height:46px;font-size:15px}
+  .tl-player button{min-height:44px;min-width:52px;font-size:13px}
+  .tl-player select{min-height:40px;font-size:14px}
+  #sl{height:40px}
+  .sheet .d-rows button{min-height:40px}
+}
+@media(max-width:759px){
+  /* chips: one scrolling row, above the docked panels */
+  .tools{z-index:30}
+  .tools-map{right:10px}
+  .tools-map .chipset{flex-wrap:nowrap;overflow-x:auto;max-width:100%;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tools-map .chipset::-webkit-scrollbar{display:none}
+
+  /* the events panel docks to the bottom edge, stream folded away */
+  .tl-chart{top:auto;bottom:0;left:0;right:0;width:auto;max-height:none;
+    border-radius:10px 10px 0 0;border-bottom:0;z-index:24}
+  .tl-chart .hist-viewport{display:none}
+  body.events-open .tl-chart .hist-viewport{display:block;height:34vh}
+  .tl-chart-bar{display:flex;align-items:center;justify-content:space-between;
+    width:100%;min-height:44px;cursor:pointer}
+  .tl-caret{border:5px solid transparent;border-bottom-color:currentColor;
+    margin-bottom:4px;opacity:.7}
+  body.events-open .tl-caret{border-bottom-color:transparent;
+    border-top-color:currentColor;margin:4px 0 0}
+
+  /* the legend is reference material, not furniture: park it behind a button */
+  .legend-toggle{
+    display:block;position:absolute;left:10px;bottom:calc(var(--tl-dock,116px) + 10px);
+    z-index:26;width:44px;height:44px;border-radius:50%;
+    background:var(--ink1);border:1px solid var(--rule);box-shadow:var(--shadow);
+    font-family:var(--mono);font-size:17px;color:var(--chalk2);
+  }
+  #stage-tree .legend-toggle{bottom:14px}
+  .legend{display:none;left:10px;right:10px;max-width:none;
+    bottom:calc(var(--tl-dock,116px) + 60px);max-height:52vh;overflow-y:auto;z-index:25}
+  #stage-tree .legend{bottom:64px}
+  .legend.open{display:block}
+  .legend-toggle[aria-expanded="true"]{background:var(--woad);color:var(--ink)}
+
+  /* the detail sheet has to clear the docked player */
+  .sheet{z-index:40}
+
+  /* cards: a 210px column is half a phone screen */
+  .mfam{width:150px}
+  .mstack-fams{max-width:150px}
+  .pcard{width:150px}
+  .mfam .pcard{width:auto;padding:6px 8px 7px}
+  .pcard .pn{font-size:13px}
+  .pcard .py,.pcard .pp{font-size:12px}
+  .mstack-head{font-size:10px}
+  .mrings{height:18px}
+  .mrings svg{width:34px;height:16px}
+}
 </style>
 <script>
 (function(){
@@ -532,6 +602,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
           <div class="classic-zoom" id="classic-zoom"><div id="classic-tree"></div></div>
         </div>
       </div>
+      <button class="legend-toggle" id="lgt-tree" aria-expanded="false" aria-controls="lg-tree">?</button>
       <div class="legend" id="lg-tree"></div>
       <div class="zoomer">
         <button id="zin" aria-label="Zoom +">+</button>
@@ -555,9 +626,10 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
         <svg id="map" role="img" aria-label="Carte des lieux"></svg>
         <div class="map-cards" id="map-cards"></div>
       </div>
+      <button class="legend-toggle" id="lgt-map" aria-expanded="false" aria-controls="lg-map">?</button>
       <div class="legend" id="lg-map"></div>
       <div class="tl-chart" id="tl-chart">
-        <div class="tl-chart-bar"><span id="tl-chart-lab"></span></div>
+        <button class="tl-chart-bar" id="tl-chart-bar" aria-expanded="false"><span id="tl-chart-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
         <div class="hist-viewport">
           <svg class="hist-overlay" id="hist-overlay" aria-hidden="true"></svg>
           <div class="hist-now-wrap" aria-hidden="true">
@@ -2678,7 +2750,10 @@ const TERRAIN={"rivers":[{"n":"Marne","r":9,"c":[[2.7959,48.9433],[2.7217,48.920
 const MAP_LAYERS = ['b', 'u', 'd', 'mig'];
 let mapTerrain = localStorage.getItem('boillet-terrain') === '1';
 let mapLiving = false;
-let mapShowCards = true;
+/* Fourteen cards need more room than a phone has; the chip turns them on for
+   anyone who wants them. Everywhere else they stay on by default. */
+const PHONE_AT_LOAD = matchMedia('(max-width:759px)').matches;
+let mapShowCards = !PHONE_AT_LOAD;
 let mapLayers = { b:true, u:true, d:true, mig:false };
 let mapTime = YMAX, mapYearFloor = YMAX, playing = null, playSpeed = 1, lastFrame = 0;
 const YRS_PER_SEC = 3;
@@ -4951,6 +5026,41 @@ function drawMapLegend() {
   drawHistChart();
 }
 
+/* ══════════ phone chrome ══════════ */
+/* Below 760px the legend and the event stream fold away so the chart gets the
+   screen. Both are plain toggles; on desktop the CSS leaves them open and the
+   buttons hidden, so none of this is reachable there. */
+const isPhone = () => matchMedia('(max-width:759px)').matches;
+
+[['lgt-tree', 'lg-tree'], ['lgt-map', 'lg-map']].forEach(([btn, panel]) => {
+  const b = document.getElementById(btn), p = document.getElementById(panel);
+  if (!b || !p) return;
+  b.onclick = () => {
+    const open = p.classList.toggle('open');
+    b.setAttribute('aria-expanded', open);
+    b.textContent = open ? '×' : '?';
+  };
+});
+
+const evBar = document.getElementById('tl-chart-bar');
+if (evBar) evBar.onclick = () => {
+  if (!isPhone()) return;
+  const open = document.body.classList.toggle('events-open');
+  evBar.setAttribute('aria-expanded', open);
+  requestAnimationFrame(() => { measureTlDock(); updateHistStream(); renderPersonCards(); });
+};
+
+/* the docked player's height feeds the CSS that positions the legend button,
+   and the card solver already treats #tl-chart as a keep-out box */
+function measureTlDock() {
+  const el = document.getElementById('tl-chart');
+  if (!el) return;
+  document.documentElement.style.setProperty('--tl-dock',
+    isPhone() ? Math.round(el.getBoundingClientRect().height) + 'px' : '0px');
+}
+addEventListener('resize', measureTlDock);
+requestAnimationFrame(measureTlDock);
+
 document.getElementById('tl-play').onclick = togglePlay;
 document.getElementById('tl-step-b').onclick = () => stepYear(-10);
 document.getElementById('tl-step-f').onclick = () => stepYear(10);
@@ -5270,6 +5380,8 @@ function setView(v) {
       if (TREE_VIEW === 'fan' || TREE_VIEW === 'timeline') fitLabels();
     });
   }
+  /* the docked player has no box until its stage is on screen */
+  if (v === 'map') requestAnimationFrame(measureTlDock);
   if (v === 'map' && !mapFitted) { mapFitted = true; requestAnimationFrame(fitMapCore); }
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
