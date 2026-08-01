@@ -991,7 +991,7 @@ function contextLifeEvents(id) {
   push(ev.by, 'born', t('evBorn'), p.bp?.[0] || '');
   if (ev.tradeY != null && p.o?.length) push(ev.tradeY, 'trade', t('job'), p.o.map(o => occName(o)).join(', '));
   push(ev.uy, 'wed', t('evWed'), p.up?.[0] || '');
-  if (ev.moved) push(ev.moveEnd, 'move', t('evMove'), p.up?.[0] || '');
+  if (ev.moved) push(ev.moveEnd, 'move', t('evMove'), unionPlace(p)?.[0] || '');
   if (ev.kidY != null && ev.childId != null) {
     const kid = get(ev.childId);
     push(ev.kidY, 'kid', t('evKid'), fullName(kid) + (kid.bp?.[0] ? ` · ${kid.bp[0]}` : ''));
@@ -2865,10 +2865,10 @@ function mapXY(pl, id, offMap) {
 }
 
 function livingMigState(p, time, offMap) {
-  const uy = yr(p.u);
-  if (!p.bp?.[2] || !p.up?.[2] || !uy || time < uy) return null;
+  const uy = unionYear(p), up = unionPlace(p);
+  if (!p.bp?.[2] || !up || !uy || time < uy) return null;
   const [x0, y0] = mapXY(p.bp, p.id, offMap);
-  const [x1, y1] = mapXY(p.up, p.id, offMap);
+  const [x1, y1] = mapXY(up, p.id, offMap);
   if (Math.hypot(x1 - x0, y1 - y0) <= 2) return null;
   const raw = Math.min(1, Math.max(0, (time - uy) / MIG_YRS));
   const [mx, my] = migControl(x0, y0, x1, y1);
@@ -2877,21 +2877,22 @@ function livingMigState(p, time, offMap) {
 }
 
 function livingXY(p, time, offMap) {
-  if (!p.bp?.[2]) return null;
   const by = yr(p.b);
   if (by && time < by) return null;
   const mig = livingMigState(p, time, offMap);
   if (mig) return quadAt(mig.x0, mig.y0, mig.mx, mig.my, mig.x1, mig.y1, mig.t);
-  if (yr(p.u) && p.up?.[2] != null && time >= yr(p.u)) return mapXY(p.up, p.id, offMap);
+  const uy = unionYear(p), up = unionPlace(p);
+  if (uy && up && time >= uy) return mapXY(up, p.id, offMap);
+  if (!p.bp?.[2]) return null;
   return mapXY(p.bp, p.id, offMap);
 }
 
 function personPlace(p, time) {
-  if (!p.bp || p.bp[2] == null) return null;
-  const by = yr(p.b), uy = yr(p.u);
+  const by = yr(p.b), uy = unionYear(p), up = unionPlace(p);
   if (by && time < by) return null;
-  if (uy && p.up && p.up[2] != null && time >= uy + MIG_YRS) return p.up;
-  if (uy && p.up && p.up[2] != null && time >= uy) return lerpPlace(p.bp, p.up, livingMigState(p, time)?.t ?? 1);
+  if (uy && up && time >= uy + MIG_YRS) return up;
+  if (!p.bp || p.bp[2] == null) return (uy && up && time >= uy) ? up : null;
+  if (uy && up && time >= uy) return lerpPlace(p.bp, up, livingMigState(p, time)?.t ?? 1);
   return p.bp;
 }
 
@@ -2917,30 +2918,52 @@ function migCurve(g, x1, y1, x2, y2, col, op, w, prog) {
 const SPOUSE = {};
 const UNION_Y = new Map();    /* id → the year the household began */
 const UNION_EST = new Set();  /* … where that year is reasoned, not recorded */
+const UNION_PL = new Map();   /* id → where the household stood */
+const UNION_PL_EST = new Set(); /* … where that place is reasoned, not recorded */
 (function buildSpouses() {
   ALL.forEach(p => {
     const mid = p.id ^ 1;
     if (p.id >= 2 && has(mid)) SPOUSE[p.id] = mid;
   });
+  const real = pl => (pl && pl[2] != null) ? pl : null;
   ALL.forEach(p => {
     const mid = SPOUSE[p.id];
     if (mid == null || UNION_Y.has(p.id)) return;
     const q = get(mid);
+    const cid = p.id >> 1;
+    const kid = cid >= 1 && has(cid) ? get(cid) : null;
     let y = yr(p.u) ?? yr(q.u), est = false;
     if (y == null) {
       /* no certificate: the couple was keeping house by the time their child
          arrived, and failing that by the time both had come of age */
-      const cid = p.id >> 1;
-      const cby = has(cid) ? yr(get(cid).b) : null;
+      const cby = kid ? yr(kid.b) : null;
       const bys = [yr(p.b), yr(q.b)].filter(v => v != null);
       if (cby != null) { y = cby - 1; est = true; }
       else if (bys.length) { y = Math.max(...bys) + 22; est = true; }
     }
+    /* Where the household stood. No certificate names the place for about a
+       third of these couples, but their child was christened somewhere, and a
+       child is born where its parents were living — so the child's birthplace
+       stands in. Without it the two halves of a couple sit in the villages
+       they were each born in and never share a roof on the map. */
+    let pl = real(p.up) || real(q.up), plEst = false;
+    if (!pl && kid) { pl = real(kid.bp); plEst = !!pl; }
     if (y == null) return;
     UNION_Y.set(p.id, y); UNION_Y.set(mid, y);
-    if (est) { UNION_EST.add(p.id); UNION_EST.add(mid); }
+    if (pl) { UNION_PL.set(p.id, pl); UNION_PL.set(mid, pl); }
+    if (plEst) { UNION_PL_EST.add(p.id); UNION_PL_EST.add(mid); }
+    if (est || plEst) { UNION_EST.add(p.id); UNION_EST.add(mid); }
   });
 })();
+
+/* One reading of a union for everything downstream — the recorded date and
+   place when there is one, the reasoned one otherwise. */
+function unionYear(p)  { return UNION_Y.get(p.id) ?? yr(p.u); }
+function unionPlace(p) {
+  const u = UNION_PL.get(p.id);
+  if (u) return u;
+  return (p.up && p.up[2] != null) ? p.up : null;
+}
 
 const MED_AGE = (() => {
   const a = ALL.map(p => p.a).filter(x => x != null).sort((x, y) => x - y);
@@ -3036,12 +3059,14 @@ function cardYears(p, st) {
 function settledPlace(p, time) {
   const by = yr(p.b);
   if (by == null || time < by) return null;
-  const uy = yr(p.u);
-  if (uy != null && p.up && p.up[2] != null && time >= uy) {
-    if (!placesSame(p.bp, p.up) && time < uy + MIG_YRS) return null;
-    return p.up;
+  const bp = (p.bp && p.bp[2] != null) ? p.bp : null;
+  const uy = unionYear(p), up = unionPlace(p);
+  if (uy != null && up && time >= uy) {
+    /* only someone we can see leaving is shown on the road */
+    if (bp && !placesSame(bp, up) && time < uy + MIG_YRS) return null;
+    return up;
   }
-  return (p.bp && p.bp[2] != null) ? p.bp : null;
+  return bp;
 }
 
 /* A child stays part of the parents' household until they grow up, marry,
@@ -3204,14 +3229,16 @@ const LIFE_EV = new Map();
     }
     const cid = p.id > 1 ? (p.id >> 1) : null;
     const kid = cid != null && has(cid) ? get(cid) : null;
-    const moved = !!(p.bp && p.up && p.bp[2] != null && p.up[2] != null &&
-      (Math.abs(p.bp[2] - p.up[2]) > 1e-4 || Math.abs(p.bp[3] - p.up[3]) > 1e-4));
+    /* the year the household actually formed on the map, reasoned or recorded */
+    const huy = unionYear(p), hup = unionPlace(p);
+    const moved = !!(p.bp && hup && p.bp[2] != null &&
+      (Math.abs(p.bp[2] - hup[2]) > 1e-4 || Math.abs(p.bp[3] - hup[3]) > 1e-4));
     LIFE_EV.set(p.id, {
       by, uy, dy, edy, certain: dy != null,
       approxBirth: !!(p.b && p.b[3]),
       tradeY, cat: p.c || null,
       childId: kid ? cid : null, kidY: kid ? yr(kid.b) : null,
-      moved, moveEnd: (moved && uy != null) ? uy + MIG_YRS : null,
+      huy, moved, moveEnd: (moved && huy != null) ? huy + MIG_YRS : null,
       grave: (p.dp && p.dp[2] != null) ? p.dp : ((p.up && p.up[2] != null) ? p.up : p.bp)
     });
   });
@@ -3262,9 +3289,15 @@ function gravePhase(p, time) {
 }
 
 function livingRenderable(p, time) {
-  if (!p.bp || p.bp[2] == null) return false;
   const by = yr(p.b);
   if (by == null || by > time) return false;
+  if (!p.bp || p.bp[2] == null) {
+    /* no birthplace on record. They can still be put on the map from the year
+       their household forms, and no earlier — we know where they ended up
+       living, not where they started. */
+    const uy = unionYear(p), up = unionPlace(p);
+    if (uy == null || !up || time < uy) return false;
+  }
   const end = graveEnd(p);
   return end == null || time <= end;
 }
@@ -3621,7 +3654,7 @@ function drawLivingLines(shown, ctx) {
       if (!cev || cev.by == null) return;
       const cage = time - cev.by;
       if (cage < 0 || cage > 18) return;
-      if (cev.uy != null && time >= cev.uy) return;
+      if (cev.huy != null && time >= cev.huy) return;
       const near = ctx.dim && ctx.dim.has(p.id) && ctx.dim.has(ev.childId);
       livingLines.appendChild(el('line', {
         x1: a[0].toFixed(1), y1: a[1].toFixed(1), x2: b[0].toFixed(1), y2: b[1].toFixed(1),
@@ -3639,7 +3672,7 @@ function drawLivingLines(shown, ctx) {
     shown.forEach(p => {
       const ev = LIFE_EV.get(p.id);
       if (!ev || ev.by == null) return;
-      const leaves = Math.min(ev.by + 18, ev.uy != null ? ev.uy : Infinity);
+      const leaves = Math.min(ev.by + 18, ev.huy != null ? ev.huy : Infinity);
       if (!isFinite(leaves)) return;
       const since = time - leaves;
       if (since < 0 || since > DEPART_YRS) return;
@@ -3717,7 +3750,8 @@ const tickerBox = document.getElementById('life-ticker');
 
 function eventPlace(p, ev, kind) {
   if (kind === 'born') return p.bp?.[0];
-  if (kind === 'wed' || kind === 'move') return p.up?.[0];
+  if (kind === 'wed') return p.up?.[0];
+  if (kind === 'move') return unionPlace(p)?.[0];
   if (kind === 'died') return (p.dp || p.up || p.bp)?.[0];
   if (kind === 'kid' && ev.childId != null) return get(ev.childId)?.bp?.[0];
   return null;
@@ -3846,7 +3880,8 @@ function livingLayout(time) {
   const pairs = [];
   moving.forEach(p => {
     pairs.push({ id: p.id, pl: p.bp });
-    if (yr(p.u) && p.up?.[2] && time >= yr(p.u)) pairs.push({ id: p.id, pl: p.up });
+    const up = unionPlace(p);
+    if (unionYear(p) && up && time >= unionYear(p)) pairs.push({ id: p.id, pl: up });
   });
   const offMap = buildDotOffsets(pairs);
   const migs = new Map();
@@ -3977,10 +4012,12 @@ function updateLivingLayer() {
    changes place once, on the wedding, together with the stack it joins. */
 function cardPlaceOf(p, time) {
   if (mapLiving) {
-    const uy = yr(p.u);
-    if (uy != null && p.up && p.up[2] != null && time >= uy) return p.up;
+    const uy = unionYear(p), up = unionPlace(p);
+    if (uy != null && up && time >= uy) return up;
   }
-  return (p.bp && p.bp[2] != null) ? p.bp : null;
+  if (p.bp && p.bp[2] != null) return p.bp;
+  const uy = unionYear(p), up = unionPlace(p);
+  return (uy != null && up && time >= uy) ? up : null;
 }
 
 /* two interlocking gold bands, sitting in the seam between husband and wife */
