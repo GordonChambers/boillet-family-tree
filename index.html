@@ -340,6 +340,13 @@ h2:first-of-type{margin-top:0}
 .pcard .pp{font-size:15px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .pcard .pd{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:4px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
 .pcard .pd span{display:block}
+/* a card whose subject has died: the ink goes out of it and a headstone
+   takes the place the accent bar had, so the stack reads at a glance */
+.pcard.dead{border-left-color:var(--chalk3);opacity:.82}
+.pcard.dead .pn{color:var(--chalk2);font-weight:500}
+.pcard.dead .py{color:var(--chalk3)}
+.pcard .pdead{display:inline-block;width:11px;height:11px;margin-right:5px;
+  vertical-align:-1px;fill:var(--chalk3)}
 
 /* one stack per place: families side by side, generations running downward */
 .mstack{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;
@@ -734,6 +741,7 @@ const T = {
     livingMig:'Courbe — déménagement (naissance → mariage)',
     livingUnion:'Tirets dorés — époux unis',
     livHousehold:'Trait de sol commun — même foyer',
+    livGrave:'Pierre tombale — décédé ; elle demeure jusqu’au décès du conjoint',
     terrain:'Terrain', terrainHint:'Mer, côte, rivières, agglomérations et villes',
     terrLegSea:'Mer et rivières', terrLegTown:'Agglomérations', terrLegTownName:'Villes',
     terrSource:'Fond : Natural Earth 10m',
@@ -775,6 +783,7 @@ const T = {
     livingMig:'Curved line — move (birth → marriage)',
     livingUnion:'Gold dashes — united spouses',
     livHousehold:'Shared ground line — one household',
+    livGrave:'Headstone — died; it stands until the partner follows',
     terrain:'Terrain', terrainHint:'Sea, coast, rivers, built-up areas and towns',
     terrLegSea:'Sea and rivers', terrLegTown:'Built-up areas', terrLegTownName:'Towns',
     terrSource:'Base map: Natural Earth 10m',
@@ -2959,8 +2968,8 @@ function personLife(p, year) {
   if (dy && year > dy + fadeYrs) return null;
   let age = year - by;
   if (p.b && p.b[3]) age = null;
-  let scale = 1, gray = 0, opacity = 1;
-  if (dy && year > dy) opacity = Math.max(0, 1 - (year - dy) / fadeYrs);
+  let scale = 1, gray = 0, opacity = 1, gone = false;
+  if (dy && year > dy) { opacity = Math.max(0, 1 - (year - dy) / fadeYrs); gone = true; }
   if (age != null) {
     if (age < 18) scale = 0.55 + (age / 18) * 0.45;
     else if (dy) {
@@ -2968,7 +2977,7 @@ function personLife(p, year) {
       gray = Math.min(0.85, (age - 18) / span);
     }
   }
-  return { age, scale, gray, opacity };
+  return { age, scale, gray, opacity, dead: gone };
 }
 
 function cardPasses(p, time) {
@@ -2978,13 +2987,14 @@ function cardPasses(p, time) {
     const by = yr(p.b);
     if (by == null || by > time) return null;
     const edy = effectiveDeath(p);
-    /* the dead linger for DEATH_FADE years so the card can fade out of the
-       stack rather than blink away and yank everyone below it upward */
+    /* The dead stay in the stack for as long as their grave stands on the
+       map, marked as deceased, then fade out of it together — so a card never
+       blinks away and yanks everyone below it upward. */
     if (edy != null && time > edy) {
-      const k = (time - edy) / DEATH_FADE;
-      if (k >= 1) return null;
+      const g = gravePhase(p, time);
+      if (!g || g.op <= 0) return null;
       const st = personLifeVisual(p, edy);
-      return st ? { ...st, opacity: 1 - k } : null;
+      return st ? { ...st, opacity: g.op, dead: true } : null;
     }
     return personLifeVisual(p, time);
   }
@@ -3043,8 +3053,11 @@ function isDependentChild(kid, time, parentPl, kidPl) {
   if (time - by >= 18) return false;
   const uy = UNION_Y.get(kid.id) ?? yr(kid.u);
   if (uy != null && time >= uy) return false;
-  const edy = effectiveDeath(kid);
-  if (edy != null && time > edy) return false;
+  /* A child who dies keeps their seat for as long as their stone stands. It
+     is their own marker either way, and moving it out of the family the
+     instant they die would make the death read as a jump across the map. */
+  const end = graveEnd(kid);
+  if (end != null && time > end) return false;
   return placesSame(parentPl, kidPl);
 }
 
@@ -3211,12 +3224,49 @@ function phase(now, y, span) {
   return raw >= 1 ? 1 : smoothT(raw);
 }
 
+/* ── graves ──
+   A death leaves a stone standing in the seat. For a couple it stays until
+   the survivor joins them, so a widow is shown keeping her place beside her
+   husband's grave rather than suddenly standing alone; after that both stones
+   linger a few years and go together. Someone who died alone gets the same
+   short vigil. */
+const GRAVE_HOLD = 5, GRAVE_FADE = 4;
+
+/* the year this person's stone starts to weather away */
+function graveStart(p) {
+  const edy = effectiveDeath(p);
+  if (edy == null) return null;
+  const sid = SPOUSE[p.id];
+  if (sid != null && has(sid) && UNION_Y.get(p.id) != null) {
+    const mate = getP(sid);
+    const sEdy = mate ? effectiveDeath(mate) : null;
+    if (sEdy != null && sEdy > edy) return sEdy;
+  }
+  return edy;
+}
+
+function graveEnd(p) {
+  const s = graveStart(p);
+  return s == null ? null : s + GRAVE_HOLD + GRAVE_FADE;
+}
+
+/* null while alive, else how solid the stone is and how far it has risen */
+function gravePhase(p, time) {
+  const edy = effectiveDeath(p);
+  if (edy == null || time <= edy) return null;
+  const going = time - (graveStart(p) + GRAVE_HOLD);
+  return {
+    op: going <= 0 ? 1 : Math.max(0, 1 - going / GRAVE_FADE),
+    rise: Math.min(1, (time - edy) / 1.5)
+  };
+}
+
 function livingRenderable(p, time) {
   if (!p.bp || p.bp[2] == null) return false;
   const by = yr(p.b);
   if (by == null || by > time) return false;
-  const edy = effectiveDeath(p);
-  return edy == null || time <= edy + DEATH_FADE;
+  const end = graveEnd(p);
+  return end == null || time <= end;
 }
 
 /* withKid: the child is already standing in this household, so the parent is
@@ -3268,6 +3318,7 @@ const LIVING_DEFS = `<defs id="living-defs">
 <symbol id="sil-adult" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="6" cy="2.9" r="1.6"/><path d="M6 4.8c1.5 0 2.3 1.1 2.3 2.6v1.3H3.7V7.4c0-1.5.8-2.6 2.3-2.6z"/><path d="M4.3 9.2h1.2v2.6H4.3zM6.5 9.2h1.2v2.6H6.5z"/></g></symbol>
 <symbol id="sil-parent" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.4" cy="2.9" r="1.5"/><path d="M4.4 4.7c1.4 0 2.1 1.1 2.1 2.5v1.2H2.3V7.2c0-1.4.7-2.5 2.1-2.5z"/><path d="M2.9 9.1h1.1v2.6H2.9zM4.8 9.1h1.1v2.6H4.8z"/><circle cx="9.1" cy="6.2" r="1.05"/><path d="M9.1 7.5c.9 0 1.35.6 1.35 1.4v.7H7.75v-.7c0-.8.45-1.4 1.35-1.4z"/><path d="M8.25 10.1h.65v1.6h-.65zM9.3 10.1h.65v1.6H9.3z"/></g></symbol>
 <symbol id="sil-elder" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.3" cy="3.7" r="1.5"/><path d="M4.6 5.4c1.3.1 2 1.1 1.85 2.3l-.15 1.2-4.1-.5.15-1.2c.15-1.2 1-2 2.25-1.8z"/><path d="M2.5 9.2h1.1l-.35 2.5H2.15zM4.55 9.45h1.1l.3 2.25h-1.1z"/></g><g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M8.1 5.4v6.2"/></g></symbol>
+<symbol id="sil-grave" viewBox="0 0 12 12"><g fill="currentColor"><path d="M6 2.1c1.85 0 3.15 1.35 3.15 3.1v5.05H2.85V5.2C2.85 3.45 4.15 2.1 6 2.1z"/><path d="M1.7 10.05h8.6v1.55H1.7z"/></g><g fill="none" stroke="#0F141A" stroke-width="0.85" stroke-opacity="0.45" stroke-linecap="round"><path d="M6 4.1v3.6M4.5 5.5h3"/></g></symbol>
 <symbol id="sym-cross" viewBox="0 0 12 12"><g fill="currentColor"><path d="M5.05 1.1h1.9v2.9h2.5v1.9h-2.5v3.7h-1.9V5.9h-2.5V4h2.5z"/><path d="M2.85 9.9h6.3v1.8h-6.3z"/></g></symbol>
 </defs>`;
 
@@ -3381,8 +3432,11 @@ function updateLivingNode(p, ctx) {
   sa(n.g, 'opacity', ctx.dim && !ctx.dim.has(p.id) ? '0.3' : '1');
 
   const dead = ev.edy != null && time > ev.edy;
+  const grave = dead ? gravePhase(p, time) : null;
   const dphase = dead ? Math.min(1, (time - ev.edy) / DEATH_FADE) : 0;
-  const alive = 1 - dphase;
+  /* the living chrome — rings, sigil, age arc — goes with the person; the
+     stone that replaces them carries its own opacity */
+  const alive = dead ? 0 : 1;
   const age = ev.by != null ? (dead ? ev.edy - ev.by : time - ev.by) : null;
   const pop = REDUCED_MOTION ? 1 : (phase(time, ev.by, BIRTH_YRS) ?? 1);
   const r = coreRadius(age) * (0.25 + 0.75 * pop);
@@ -3395,17 +3449,29 @@ function updateLivingNode(p, ctx) {
   const slot = ctx.slots ? ctx.slots.get(p.id) : null;
   const figK = slot ? slot.figK : 1;
 
-  /* figure */
+  /* figure, or the stone that takes its place */
   const figSize = (10 + r * 1.1) * (0.3 + 0.7 * pop) * figK;
   const feet = figSize * 0.115, head = -figSize * 0.78;
   sa(n.core, 'r', '0');
-  sa(n.fig, 'href', '#sil-' + livingStage(age, ev, time, slot && slot.hasKid));
-  sa(n.fig, 'width', figSize.toFixed(2));
-  sa(n.fig, 'height', figSize.toFixed(2));
-  sa(n.fig, 'x', (-figSize / 2).toFixed(2));
-  sa(n.fig, 'y', (-figSize * 0.86).toFixed(2));
-  scol(n.fig, fill);
-  sa(n.fig, 'opacity', (0.94 * alive).toFixed(3));
+  if (grave) {
+    /* the stone rises out of the seat the person stood in */
+    const gs = figSize * (0.62 + 0.16 * grave.rise);
+    sa(n.fig, 'href', '#sil-grave');
+    sa(n.fig, 'width', gs.toFixed(2));
+    sa(n.fig, 'height', gs.toFixed(2));
+    sa(n.fig, 'x', (-gs / 2).toFixed(2));
+    sa(n.fig, 'y', (feet - gs * 0.97).toFixed(2));
+    scol(n.fig, th.chalk3);
+    sa(n.fig, 'opacity', (0.85 * grave.op).toFixed(3));
+  } else {
+    sa(n.fig, 'href', '#sil-' + livingStage(age, ev, time, slot && slot.hasKid));
+    sa(n.fig, 'width', figSize.toFixed(2));
+    sa(n.fig, 'height', figSize.toFixed(2));
+    sa(n.fig, 'x', (-figSize / 2).toFixed(2));
+    sa(n.fig, 'y', (-figSize * 0.86).toFixed(2));
+    scol(n.fig, fill);
+    sa(n.fig, 'opacity', '0.94');
+  }
 
   /* age ring — solid when the death is recorded, dotted when it is a guess.
      Inside a household the shared plinth carries the ground, so the personal
@@ -3453,27 +3519,17 @@ function updateLivingNode(p, ctx) {
     sa(n.sigil, 'opacity', (0.9 * tp * alive).toFixed(3));
   } else sa(n.sigil, 'opacity', '0');
 
-  /* death: a stone cross for a recorded burial, dust for an estimated one */
+  /* The stone itself now marks the death, so the old cross is redundant. What
+     it still has to say is whether the date is attested: a recorded burial
+     gets a clean stone, a reckoned one a puff of dust as it settles. */
   const cy0 = -figSize * 0.33;
-  if (dead && ev.certain) {
-    const cs = 7.5 * (0.55 + 0.45 * dphase);
-    sa(n.cross, 'width', cs.toFixed(2));
-    sa(n.cross, 'height', cs.toFixed(2));
-    sa(n.cross, 'x', (-cs / 2).toFixed(2));
-    sa(n.cross, 'y', (head - cs * 0.75).toFixed(2));
-    scol(n.cross, th.chalk2);
-    sa(n.cross, 'opacity', (0.9 - 0.45 * dphase).toFixed(3));
-    sa(n.dust, 'opacity', '0');
-  } else if (dead) {
-    sa(n.cross, 'opacity', '0');
+  sa(n.cross, 'opacity', '0');
+  if (grave && !ev.certain && dphase < 1) {
     sa(n.dust, 'cy', cy0.toFixed(2));
     sa(n.dust, 'r', (r + 1.5 + dphase * 6).toFixed(2));
     sa(n.dust, 'stroke', th.chalk3);
-    sa(n.dust, 'opacity', (0.55 * (1 - dphase)).toFixed(3));
-  } else {
-    sa(n.cross, 'opacity', '0');
-    sa(n.dust, 'opacity', '0');
-  }
+    sa(n.dust, 'opacity', (0.55 * (1 - dphase) * grave.op).toFixed(3));
+  } else sa(n.dust, 'opacity', '0');
 
   /* event pulse */
   if (evNow && !REDUCED_MOTION && lod > 0) {
@@ -3509,8 +3565,10 @@ function updateLivingNode(p, ctx) {
     sa(n.label, 'x', '0');
     sa(n.label, 'y', (feet + 8 + row * 7).toFixed(2));
     sa(n.label, 'font-size', '6');
-    sa(n.label, 'fill', th.chalk);
-    sa(n.label, 'opacity', ((SEL === p.id ? 0.95 : 0.72) * alive).toFixed(3));
+    /* the name stays under the stone — it is whose grave it is */
+    sa(n.label, 'fill', grave ? th.chalk2 : th.chalk);
+    sa(n.label, 'opacity',
+       ((SEL === p.id ? 0.95 : 0.72) * (grave ? grave.op : 1)).toFixed(3));
   } else sa(n.label, 'opacity', '0');
 
   sa(n.hit, 'cy', cy0.toFixed(2));
@@ -4199,9 +4257,16 @@ function wireStackDrag(elm, key) {
   });
 }
 
+/* the same headstone the map draws, small enough to sit in a line of type */
+const GRAVE_MARK =
+  '<svg class="pdead" viewBox="0 0 12 12" aria-hidden="true">' +
+  '<path d="M6 2.1c1.85 0 3.15 1.35 3.15 3.1v5.05H2.85V5.2C2.85 3.45 4.15 2.1 6 2.1z"/>' +
+  '<path d="M1.7 10.05h8.6v1.55H1.7z"/></svg>';
+
 function personCardHtml(p, st) {
   const gv = firstGiven(p);
-  return `<div class="pn">${p.n}${gv ? ' <em>' + gv + '</em>' : ''}</div>` +
+  const mark = st.dead ? GRAVE_MARK : '';
+  return `<div class="pn">${mark}${p.n}${gv ? ' <em>' + gv + '</em>' : ''}</div>` +
     `<div class="py">${cardYears(p, st)}</div>` +
     `<div class="pp">${cardPlaceLine(p)}</div>`;
 }
@@ -4382,6 +4447,7 @@ function renderPersonCards() {
       card.style.setProperty('--po', st.opacity.toFixed(3));
       const inLine = !selPath || selPath.has(m.id);
       card.classList.toggle('sel', SEL === m.id);
+      card.classList.toggle('dead', !!st.dead);
       card.classList.toggle('dim', !!selPath && !inLine);
       if (SEL === m.id) hasSel = true;
     })));
@@ -4997,11 +5063,14 @@ function drawMapLegend() {
   if (mapLiving) {
     const cross = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true">` +
       `<use href="#sym-cross" width="12" height="12" x="0" y="0" style="color:var(--chalk2)"></use></svg>`;
+    const stone = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true">` +
+      `<use href="#sil-grave" width="12" height="12" x="0" y="0" style="color:var(--chalk3)"></use></svg>`;
     h += `<div class="t" style="margin-top:8px">${t('living')}</div>` +
       `<div><i class="leg-ring"></i>${t('livRingSure')}</div>` +
       `<div><i class="leg-ring est"></i>${t('livRingEst')}</div>` +
       `<div><i class="leg-ring band"></i>${t('livBand')}</div>` +
       `<div><i style="background:var(--weld)"></i>${t('livSigil')}</div>` +
+      `<div>${stone}${t('livGrave')}</div>` +
       `<div>${cross}${t('livCross')}</div>` +
       `<div><i class="leg-curve"></i>${t('livingMig')}</div>` +
       `<div><i class="leg-dash"></i>${t('livingUnion')}</div>` +
