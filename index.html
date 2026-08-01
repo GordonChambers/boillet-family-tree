@@ -305,6 +305,10 @@ h2:first-of-type{margin-top:0}
 .foot{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);
   font-family:var(--mono);font-size:11px;line-height:1.75;color:var(--chalk3)}
 
+/* the fan repaints wholesale on every zoom step; hinting the text renderer
+   for speed over kerning fidelity is worth it at these sizes */
+#fan-labels{text-rendering:optimizeSpeed}
+
 /* map extras */
 .map-wrap{position:absolute;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none}
 .map-wrap > svg{position:absolute;inset:0}
@@ -1229,9 +1233,19 @@ function ZoomPan(svg, g, minK, maxK, onSync, onTap) {
     g.setAttribute('transform', `translate(${S.x} ${S.y}) scale(${S.k})`);
     if (onSync) onSync(S);
   };
+  /* getScreenCTM forces a synchronous layout of the whole SVG, and the fan is
+     twelve hundred elements deep. It maps the element to the page, so it does
+     not change when we zoom — only when the page does. Cache it and let the
+     resize and view handlers clear it. */
+  let ctmInv = null;
+  S.invalidate = () => { ctmInv = null; };
   function local(cx, cy) {
-    const m = svg.getScreenCTM().inverse();
-    const p = new DOMPoint(cx, cy).matrixTransform(m);
+    if (!ctmInv) {
+      const m = svg.getScreenCTM();
+      if (!m) return [0, 0];
+      ctmInv = m.inverse();
+    }
+    const p = new DOMPoint(cx, cy).matrixTransform(ctmInv);
     return [p.x, p.y];
   }
   function zoomAt(cx, cy, factor) {
@@ -1333,7 +1347,7 @@ const fan = document.getElementById('fan');
 fan.setAttribute('viewBox', `${-RMAX-4} ${-RMAX-4} ${(RMAX+4)*2} ${(RMAX+4)*2}`);
 const fanG = el('g', {});
 fan.appendChild(fanG);
-const zpTree = ZoomPan(fan, fanG, 0.6, 14, null, (cx, cy) => tapSelectInSvg(fan, cx, cy));
+const zpTree = ZoomPan(fan, fanG, 0.6, 14, scheduleFanLod, (cx, cy) => tapSelectInSvg(fan, cx, cy));
 let SEL = null, TREE_VIEW = 'fan';
 
 function lifeStart(p) {
@@ -1396,7 +1410,7 @@ function drawFan() {
     rings.appendChild(el('circle', { cx:0, cy:0, r:rout(g), fill:'none', stroke:'#1B242E', 'stroke-width':.6 }));
   fanG.appendChild(rings);
 
-  const paths = el('g', {}), labs = el('g', { 'pointer-events':'none' }), defs = el('defs', {});
+  const paths = el('g', {}), labs = el('g', { id:'fan-labels', 'pointer-events':'none' }), defs = el('defs', {});
   fanG.appendChild(defs); fanG.appendChild(paths); fanG.appendChild(labs);
   PENDING = [];
   NODES.forEach(n => {
@@ -1413,6 +1427,10 @@ function drawFan() {
     /* label */
     const mid = (n.a0 + n.a1) / 2, arc = (n.a1 - n.a0) * D2R;
     const r0 = rin(n.g), r1 = rout(n.g), rm = (r0 + r1)/2;
+    /* where this wedge's label sits, so the zoom can tell at a glance whether
+       it is worth painting — see fanLabelLod */
+    const [lx, ly] = pt(mid, rm);
+    const lrad = Math.max(arc * rm, r1 - r0) / 2 + 4;
     const room = arc * rm, radial = (r1 - r0) - (n.g === 1 ? 0 : 12);
     const ink = lum(c) > .55 ? '#0F141A' : FAN_LABEL_INK;
     const gv = firstGiven(p);
@@ -1427,6 +1445,7 @@ function drawFan() {
         'font-family':'IBM Plex Mono, monospace', 'font-size':10 }), { textContent:firstGiven(p) }));
       g1.appendChild(Object.assign(el('text', { x:0, y:25, 'text-anchor':'middle', fill:ink, opacity:.75,
         'font-family':'IBM Plex Mono, monospace', 'font-size':9 }), { textContent:ys }));
+      g1.__lod = { fs: 17, x: 0, y: 0, rad: rout(1) + 6 };
       labs.appendChild(g1); return;
     }
     /* Wedge wider than it is deep -> run the label along the ring, where the
@@ -1449,6 +1468,7 @@ function drawFan() {
         tp.setAttribute('startOffset', '50%');
         tp.setAttribute('text-anchor', 'middle');
         tp.textContent = txt;
+        te.__lod = { fs: size, x: lx, y: ly, rad: lrad };
         te.appendChild(tp); labs.appendChild(te);
         PENDING.push({ node:te, write:tp, max: arc * rr * 0.93, vars });
       };
@@ -1485,6 +1505,7 @@ function drawFan() {
       l2.textContent = ys; gl.appendChild(l2);
       PENDING.push({ node:l2, max:radial, vars:[ys] });
     }
+    gl.__lod = { fs, x: lx, y: ly, rad: lrad };
     labs.appendChild(gl);
   });
 
@@ -2133,12 +2154,97 @@ function applyFanLabelBgs() {
     tx.removeAttribute('data-id');
     tx.parentNode.insertBefore(g, tx);
     g.appendChild(tx);
+    g.__lod = tx.__lod;
     placeBg(g);
   });
 }
 
+/* Labels are about seventy percent of what the fan costs to paint, and at any
+   given zoom most of them are either too small to read or off the screen
+   altogether. Culling those two groups is what makes zooming smooth: the
+   wedges alone repaint in a quarter of the time the full chart does. */
+const FAN_MIN_LABEL_PX = 5.5;
+/* mid-gesture the threshold rises: a name sliding past under your fingers
+   cannot be read anyway, and dropping the small ones is what buys the frame
+   rate. They all come back the moment the zoom settles. */
+const FAN_BUSY_LABEL_PX = 13;
+let FAN_LABELS = [], fanRect = null, fanLodPend = 0, fanBusy = false, fanIdle = 0;
+let fanLabs = null, fanLabsHidden = false;
+
+function collectFanLabels() {
+  FAN_LABELS = [];
+  fanLabs = null; fanLabsHidden = false;
+  if (!fanG) return;
+  fanG.querySelectorAll('#fan-labels > *').forEach(n => {
+    if (n.__lod) FAN_LABELS.push({ node: n, ...n.__lod, on: true });
+  });
+}
+
+function measureFan() { fanRect = fan.getBoundingClientRect(); }
+
+function reattachFanLabels() {
+  if (fanLabs && fanLabsHidden) { fanG.appendChild(fanLabs); fanLabsHidden = false; }
+}
+
+function showAllFanLabels() {
+  reattachFanLabels();
+  FAN_LABELS.forEach(L => { if (!L.on) { L.on = true; L.node.style.display = ''; } });
+}
+
+function fanLabelLod() {
+  if (TREE_VIEW !== 'fan' || !FAN_LABELS.length) return;
+  /* While the zoom is actually moving, lift the whole label layer out of the
+     document. Every transform on the fan costs a full SVG layout pass, and
+     with three hundred odd names — a hundred and sixty of them laid along
+     arcs — that pass runs about 46ms. Detaching them takes it to under one.
+     display:none is not enough: Chrome still lays out SVG text it is not
+     going to draw. The labels go back the moment the gesture settles, so at
+     rest nothing is lost. */
+  const labs = fanLabs || (fanLabs = fanG.querySelector('#fan-labels'));
+  if (labs && fanLabsHidden !== fanBusy) {
+    fanLabsHidden = fanBusy;
+    if (fanBusy) labs.remove(); else fanG.appendChild(labs);
+  }
+  if (fanBusy) return;
+  if (!fanRect || !fanRect.width) measureFan();
+  if (!fanRect || !fanRect.width) return;
+  const vb = (RMAX + 4) * 2;
+  const base = Math.min(fanRect.width, fanRect.height) / vb;
+  const k = zpTree.k, s = base * k;
+  /* the visible window, expressed back in the fan's own coordinates */
+  const hx = fanRect.width / (2 * base), hy = fanRect.height / (2 * base);
+  const x0 = (-hx - zpTree.x) / k, x1 = (hx - zpTree.x) / k;
+  const y0 = (-hy - zpTree.y) / k, y1 = (hy - zpTree.y) / k;
+  const minPx = fanBusy ? FAN_BUSY_LABEL_PX : FAN_MIN_LABEL_PX;
+  for (const L of FAN_LABELS) {
+    const show = L.fs * s >= minPx &&
+      L.x + L.rad >= x0 && L.x - L.rad <= x1 &&
+      L.y + L.rad >= y0 && L.y - L.rad <= y1;
+    if (L.on !== show) { L.on = show; L.node.style.display = show ? '' : 'none'; }
+  }
+}
+
+function scheduleFanLod() {
+  fanBusy = true;
+  clearTimeout(fanIdle);
+  fanIdle = setTimeout(() => {
+    fanBusy = false;
+    fanLabelLod();
+    /* the labels missed any selection change while they were detached */
+    if (SEL != null) markSel();
+  }, 140);
+  if (fanLodPend) return;
+  fanLodPend = requestAnimationFrame(() => { fanLodPend = 0; fanLabelLod(); });
+}
+
 function fitLabels() {
-  if (!PENDING.length) return;
+  /* measuring needs every label present, so undo any culling first */
+  if (TREE_VIEW === 'fan') showAllFanLabels();
+  if (!PENDING.length) {
+    /* nothing to re-fit, but a resize still changes what is worth drawing */
+    if (TREE_VIEW === 'fan') { measureFan(); fanLabelLod(); }
+    return;
+  }
   const host = TREE_VIEW === 'timeline' ? timeline : fan;
   if (!host.getBoundingClientRect().width) return;
   PENDING.forEach(({ node, write, max, vars }) => {
@@ -2165,7 +2271,12 @@ function fitLabels() {
     }
   });
   PENDING = [];
-  if (TREE_VIEW === 'fan') applyFanLabelBgs();
+  if (TREE_VIEW === 'fan') {
+    applyFanLabelBgs();
+    collectFanLabels();
+    measureFan();
+    fanLabelLod();
+  }
 }
 
 let selPath = null;
@@ -5144,6 +5255,9 @@ function drawStats() {
 let mapFitted = false;
 function setView(v) {
   VIEW = v;
+  /* a hidden panel has no box, so every cached mapping is stale on the way in */
+  fanRect = null;
+  [zpTree, zpTimeline, zpMap].forEach(z => z && z.invalidate && z.invalidate());
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
   ['tree','map','stats'].forEach(k => document.getElementById('v-'+k).classList.toggle('on', k === v));
   document.body.classList.toggle('locked', v !== 'stats');
@@ -5198,8 +5312,10 @@ document.getElementById('mzout').onclick = () => zpMap.zoom(1/1.5);
 document.getElementById('mzfit').onclick = () => { zpMap.reset(); fitMapCore(); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 window.addEventListener('resize', () => {
+  /* every cached page-to-element mapping is stale once the page resizes */
+  [zpTree, zpTimeline, zpMap].forEach(z => z && z.invalidate && z.invalidate());
   if (VIEW === 'map') updateHistStream();
-  if (VIEW === 'tree') fitLabels();
+  if (VIEW === 'tree') { fanRect = null; fitLabels(); }
 });
 
 /* ══════════ boot ══════════ */
