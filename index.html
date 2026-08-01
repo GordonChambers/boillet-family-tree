@@ -2699,15 +2699,37 @@ function migCurve(g, x1, y1, x2, y2, col, op, w, prog) {
   g.appendChild(path);
 }
 
+/* A Sosa chart pairs couples by construction: 2N and 2N+1 are the two people
+   who had N, so the partner of any id is simply id^1. Matching on a shared
+   marriage date instead missed the 49 of 140 couples whose wedding was never
+   recorded — among them MOREAU Marin dit la Fleur and DAILLY Catherine, who
+   name each other as spouse and lie together at Boutencourt but have no
+   union date, and so stood apart on the map. */
 const SPOUSE = {};
+const UNION_Y = new Map();    /* id → the year the household began */
+const UNION_EST = new Set();  /* … where that year is reasoned, not recorded */
 (function buildSpouses() {
   ALL.forEach(p => {
-    if (!p.u || !p.sp || SPOUSE[p.id]) return;
-    const uy = yr(p.u);
-    const mate = ALL.find(q => q.id !== p.id && yr(q.u) === uy && p.up && q.up &&
-      Math.abs(p.up[2] - q.up[2]) < 1e-4 && Math.abs(p.up[3] - q.up[3]) < 1e-4 &&
-      (norm(p.sp).includes(norm(q.n)) || norm(q.sp || '').includes(norm(p.n))));
-    if (mate) { SPOUSE[p.id] = mate.id; SPOUSE[mate.id] = p.id; }
+    const mid = p.id ^ 1;
+    if (p.id >= 2 && has(mid)) SPOUSE[p.id] = mid;
+  });
+  ALL.forEach(p => {
+    const mid = SPOUSE[p.id];
+    if (mid == null || UNION_Y.has(p.id)) return;
+    const q = get(mid);
+    let y = yr(p.u) ?? yr(q.u), est = false;
+    if (y == null) {
+      /* no certificate: the couple was keeping house by the time their child
+         arrived, and failing that by the time both had come of age */
+      const cid = p.id >> 1;
+      const cby = has(cid) ? yr(get(cid).b) : null;
+      const bys = [yr(p.b), yr(q.b)].filter(v => v != null);
+      if (cby != null) { y = cby - 1; est = true; }
+      else if (bys.length) { y = Math.max(...bys) + 22; est = true; }
+    }
+    if (y == null) return;
+    UNION_Y.set(p.id, y); UNION_Y.set(mid, y);
+    if (est) { UNION_EST.add(p.id); UNION_EST.add(mid); }
   });
 })();
 
@@ -2819,7 +2841,7 @@ function isDependentChild(kid, time, parentPl, kidPl) {
   if (by == null || time < by) return false;
   if (kid.b[3]) return false;                       /* age only approximate */
   if (time - by >= 18) return false;
-  const uy = yr(kid.u);
+  const uy = UNION_Y.get(kid.id) ?? yr(kid.u);
   if (uy != null && time >= uy) return false;
   const edy = effectiveDeath(kid);
   if (edy != null && time > edy) return false;
@@ -2858,14 +2880,15 @@ function buildHouseholds(time, people, placeFn, opts) {
     if (!shown.has(p.id) || unitOf.has(p.id)) return;
     const mid = SPOUSE[p.id];
     if (mid == null || !shown.has(mid) || unitOf.has(mid)) return;
-    const uy = yr(p.u);
+    const uy = UNION_Y.get(p.id);
     if (uy == null || time < uy) return;
     if (!placesSame(shown.get(p.id), shown.get(mid))) return;
     const q = getP(mid);
     if (!q) return;
     const male = p.s === 'F' ? q : p, female = p.s === 'F' ? p : q;
     add({ kind: 'couple', pl: shown.get(p.id), adults: [male, female], kids: [],
-          members: [male, female], key: 'c' + Math.min(p.id, mid), uy });
+          members: [male, female], key: 'c' + Math.min(p.id, mid),
+          uy, uyEst: UNION_EST.has(p.id) });
   });
 
   /* everyone else opens as their own household */
@@ -3375,8 +3398,8 @@ function drawLivingLines(shown, ctx) {
   shown.forEach(p => {
     const sid = SPOUSE[p.id];
     if (!sid || linked.has(p.id) || linked.has(sid)) return;
-    const uy = yr(p.u);
-    if (!uy || time < uy) return;
+    const uy = UNION_Y.get(p.id);
+    if (uy == null || time < uy) return;
     if (sameUnit(p.id, sid)) { linked.add(p.id); linked.add(sid); return; }
     const a = pos.get(p.id), b = pos.get(sid);
     if (!a || !b) return;
@@ -3608,6 +3631,10 @@ function drawHouseholdChrome(layout, ctx) {
       if (+op > 0.01) {
         const r = 1.55, d = 1.2;
         const rg = el('g', { fill: 'none', stroke: th.gold, 'stroke-width': 0.55, opacity: op });
+        /* dotted where the marriage year was reasoned from the children
+           rather than read off a certificate — the same convention the age
+           rings use for an estimated death */
+        if (un.u.uyEst) rg.setAttribute('stroke-dasharray', '0.7 0.8');
         rg.appendChild(el('circle', { cx: (mx - d).toFixed(2), cy: my.toFixed(2), r: r }));
         rg.appendChild(el('circle', { cx: (mx + d).toFixed(2), cy: my.toFixed(2), r: r }));
         /* the left ring's near arc, redrawn last, so the two read as linked */
