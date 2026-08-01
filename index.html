@@ -327,11 +327,11 @@ h2:first-of-type{margin-top:0}
 .pcard.sel{border-color:var(--woad)}
 .pcard.dim{opacity:.28!important;filter:saturate(.35);pointer-events:none}
 .pcard.dim.sel{opacity:1!important;filter:none;pointer-events:auto}
-.pcard .pn{font-weight:600;font-size:15px;line-height:1.25}
+.pcard .pn{font-weight:600;font-size:15px;line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .pcard .pn em{font-style:italic;font-weight:400;color:var(--chalk2)}
-.pcard .py{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:2px;letter-spacing:.04em}
-.pcard .pp{font-size:15px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard .pd{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:4px;line-height:1.5}
+.pcard .py{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:2px;letter-spacing:.04em;white-space:normal;overflow-wrap:anywhere}
+.pcard .pp{font-size:15px;color:var(--chalk2);font-style:italic;margin-top:1px;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.pcard .pd{font-family:var(--mono);font-size:15px;color:var(--chalk3);margin-top:4px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
 .pcard .pd span{display:block}
 
 .life-ticker{
@@ -2508,6 +2508,7 @@ const DEATH_FADE = 3;
 const BAND_YRS = 2;
 const BIRTH_YRS = 1.2;
 const TICKER_YRS = 12;
+const TICKER_MAX = 7;
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let LIVING_STYLE = localStorage.getItem('boillet-living-style') === 'silhouette' ? 'silhouette' : 'medallion';
 let mapFitK = 0, livingLod = -1, livingK = -1;
@@ -3227,7 +3228,7 @@ function updateLifeTicker(time) {
     if (ev.certain) add(ev.dy, 'died');
   });
   rows.sort((a, b) => b.y - a.y || a.id - b.id);
-  const top = rows.slice(0, 4);
+  const top = rows.slice(0, TICKER_MAX);
   const sig = L + '|' + top.map(r => `${r.id}${r.kind}${r.y}`).join(',');
   if (sig !== tickerSig) {
     tickerSig = sig;
