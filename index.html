@@ -1952,12 +1952,16 @@ function setClassicZoom(z, anchor) {
       setClassicZoom(z0 * d / d0, { x: mx, y: my });
     }
   }, { passive: false });
+  /* The wheel zooms, as it does on the fan, the timeline and the map — this is
+     a drawing you move around, not a document you scroll. Panning is the drag
+     the view already has; shift+wheel still scrolls sideways for a mouse that
+     has no second axis. */
   classicScroller.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const r = classicScroller.getBoundingClientRect();
-      setClassicZoom(classicZoomK * (e.deltaY < 0 ? 1.1 : 0.9), { x: e.clientX - r.left, y: e.clientY - r.top });
-    }
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = classicScroller.getBoundingClientRect();
+    const step = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0016));
+    setClassicZoom(classicZoomK * step, { x: e.clientX - r.left, y: e.clientY - r.top });
   }, { passive: false });
 })();
 
