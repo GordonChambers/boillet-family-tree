@@ -3927,7 +3927,7 @@ function livingLayout(time) {
         slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key,
                           seat: u.adults.length + kidXs.length - 1 });
       });
-      units.push({ u, cx, cy: uy, w, grouped, coupled, adultXs, kidXs, K });
+      units.push({ u, cx, cy: uy, ay: cy, w, grouped, coupled, adultXs, kidXs, K });
     });
   });
 
@@ -3986,6 +3986,33 @@ function drawHouseholdChrome(layout, ctx) {
   livingUnitsG.textContent = '';
   const { th, lod, time, dim } = ctx;
   if (lod < 1) return;
+
+  /* A village with several households queues them above and below the place
+     itself, which puts the outer ones a good way off the spot they belong to.
+     Run a spine down through them from the marker, the same job the leader
+     lines do for the cards. */
+  const spines = new Map();
+  layout.units.forEach(un => {
+    const k = un.cx.toFixed(2) + '|' + un.ay.toFixed(2);
+    let s = spines.get(k);
+    if (!s) { s = { cx: un.cx, ay: un.ay, top: un.cy, bot: un.cy, K: un.K }; spines.set(k, s); }
+    if (un.cy < s.top) s.top = un.cy;
+    if (un.cy > s.bot) s.bot = un.cy;
+  });
+  spines.forEach(s => {
+    const K = s.K;
+    const reach = Math.max(s.ay - s.top, s.bot - s.ay);
+    if (reach < 6 * K) return;               /* it is standing on the spot */
+    livingLines.appendChild(el('line', {
+      x1: s.cx.toFixed(1), y1: (s.top - 2 * K).toFixed(1),
+      x2: s.cx.toFixed(1), y2: (s.bot + 2 * K).toFixed(1),
+      stroke: th.chalk3, 'stroke-width': (0.5 * K).toFixed(2), opacity: 0.35
+    }));
+    livingLines.appendChild(el('circle', {
+      cx: s.cx.toFixed(1), cy: s.ay.toFixed(1), r: (1.8 * K).toFixed(2),
+      fill: 'none', stroke: th.chalk3, 'stroke-width': (0.6 * K).toFixed(2), opacity: 0.6
+    }));
+  });
   layout.units.forEach(un => {
     if (!un.grouped) return;
     const dull = dim && !un.u.members.some(m => dim.has(m.id)) ? DIM_OP : 1;
@@ -4122,10 +4149,18 @@ function boxEdge(cx, cy, hw, hh, tx, ty) {
   return [cx + dx * Math.min(1, s), cy + dy * Math.min(1, s)];
 }
 
+/* The leader lines sat underneath the map they lead across, so the ground and
+   the dots painted over them and a stack five hundred pixels from its village
+   looked like it belonged nowhere. They go above the map and below the people,
+   which is where a leader line belongs: over what it crosses, under what it
+   points at. */
 function ensureCalloutG() {
-  if (mapCalloutG && mapCalloutG.parentNode === mapG) return;
-  mapCalloutG = el('g', { id: 'map-callouts', 'pointer-events': 'none' });
-  mapG.insertBefore(mapCalloutG, mapG.firstChild);
+  const before = document.getElementById('living');
+  if (mapCalloutG && mapCalloutG.parentNode === mapG &&
+      mapCalloutG.nextSibling === (before || null)) return;
+  if (!mapCalloutG) mapCalloutG = el('g', { id: 'map-callouts', 'pointer-events': 'none' });
+  if (before) mapG.insertBefore(mapCalloutG, before);
+  else mapG.appendChild(mapCalloutG);
 }
 
 function drawCallouts() {
@@ -4145,11 +4180,16 @@ function drawCallouts() {
     if (Math.hypot(ex - r.ax, ey - r.ay) * ms < 4) return;
     frag.appendChild(el('line', {
       x1: r.ax.toFixed(2), y1: r.ay.toFixed(2), x2: ex.toFixed(2), y2: ey.toFixed(2),
-      stroke: ink, 'stroke-width': 1, opacity: s.pinned ? 0.75 : 0.5
+      stroke: ink, 'stroke-width': 1.1, opacity: s.pinned ? 0.95 : 0.8
     }));
     frag.appendChild(el('circle', {
-      cx: r.ax.toFixed(2), cy: r.ay.toFixed(2), r: (2.2 / ms).toFixed(3),
-      fill: 'none', stroke: ink, 'stroke-width': 1, opacity: 0.7
+      cx: r.ax.toFixed(2), cy: r.ay.toFixed(2), r: (2.6 / ms).toFixed(3),
+      fill: 'none', stroke: ink, 'stroke-width': 1.2, opacity: 0.9
+    }));
+    /* a stub at the box end so the eye knows which of a dozen stacks it met */
+    frag.appendChild(el('circle', {
+      cx: ex.toFixed(2), cy: ey.toFixed(2), r: (1.6 / ms).toFixed(3),
+      fill: ink, opacity: s.pinned ? 0.95 : 0.75
     }));
   });
   mapCalloutG.textContent = '';
