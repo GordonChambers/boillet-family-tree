@@ -107,21 +107,51 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
 .zoomer button{width:44px;height:38px;font-family:var(--mono);font-size:16px;color:var(--chalk2);border-bottom:1px solid var(--rule)}
 .zoomer button:last-child{border-bottom:none;font-size:11.5px;letter-spacing:.06em}
 
+/* ---------- foldable panels ----------
+   Everything floating over a chart is furniture, and furniture you cannot
+   move is in the way. The legend, the life log and the event stream all fold
+   to their title bar and stay that way until told otherwise. */
+.panel-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  flex:none;text-align:left;cursor:pointer;
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--chalk3);padding:7px 10px 6px;
+}
+.panel-bar:hover{color:var(--chalk2)}
+.tl-caret{
+  flex:none;border:5px solid transparent;border-top-color:currentColor;
+  margin-top:3px;opacity:.7;transition:transform .16s ease;
+}
+.folded .tl-caret{transform:rotate(-90deg);margin-top:0}
+.folded>.legend,.folded>.life-ticker{display:none}
+.tl-chart.folded .tl-body{display:none}
+.tl-chart.folded{height:auto;max-height:none}
+
 /* Reference material, not a column of its own: it may take two thirds of the
    map's height and no more, or on a narrow desktop it grows up into the
    ticker that is reporting what is happening right now. */
-.legend{
+.legend-wrap{
   position:absolute;left:10px;bottom:16px;z-index:20;max-width:min(300px,62vw);
-  max-height:calc(100% - 264px);overflow-y:auto;overscroll-behavior:contain;
-  background:rgba(21,28,36,.95);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;
-  font-family:var(--mono);font-size:14px;line-height:1.7;color:var(--chalk2);box-shadow:0 3px 14px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;max-height:calc(100% - 110px);
+  background:rgba(21,28,36,.95);border:1px solid var(--rule);border-radius:4px;
+  box-shadow:0 3px 14px rgba(0,0,0,.5);
 }
-html[data-theme="light"] .legend{background:rgba(240,237,228,.95)}
+html[data-theme="light"] .legend-wrap{background:rgba(240,237,228,.95)}
+/* it may rise to whatever the chips and the life log above it leave free —
+   fold the log and the legend gets the room */
+#stage-map .legend-wrap{max-height:calc(100% - var(--map-tools-h,264px) - var(--tl-dock,0px) - 30px)}
+.legend-wrap .panel-bar{border-bottom:1px solid var(--rule)}
+.legend-wrap.folded .panel-bar{border-bottom:0}
+.legend{
+  overflow-y:auto;overscroll-behavior:contain;padding:8px 10px;
+  font-family:var(--mono);font-size:14px;line-height:1.7;color:var(--chalk2);
+}
 .legend .t{color:var(--chalk3);letter-spacing:.1em;text-transform:uppercase;font-size:12px;margin-bottom:4px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 .legend i.leg-curve{width:18px;height:0;border-radius:0;border-top:2px solid var(--chalk2);vertical-align:middle;transform:rotate(-6deg)}
 .legend i.leg-dash{width:18px;height:0;border-radius:0;border-top:2px dashed #C9A44E;vertical-align:middle}
 .legend i.leg-fil{width:18px;height:0;border-radius:0;border-top:1px solid var(--chalk3);vertical-align:middle}
+.legend i.leg-bracket{width:0;height:15px;border-radius:0;border-left:2px solid var(--chalk2);opacity:.55;vertical-align:-4px;margin-right:9px}
 .legend i.leg-plinth{width:18px;height:0;border-radius:0;border-top:1.6px solid var(--chalk2);opacity:.75;vertical-align:middle}
 .legend i.leg-ring{width:11px;height:11px;border-radius:50%;border:1.4px solid var(--chalk2);background:none;vertical-align:-2px}
 .legend i.leg-ring.est{border-style:dotted}
@@ -397,11 +427,17 @@ h2:first-of-type{margin-top:0}
 #map-callouts{pointer-events:none}
 #map-callouts line,#map-callouts path{vector-effect:non-scaling-stroke}
 
-.life-ticker{
-  display:none;flex-direction:column;gap:2px;
-  max-width:min(300px,66vw);pointer-events:none;
+.ticker-wrap{
+  display:none;flex-direction:column;max-width:min(430px,32vw);
+  background:rgba(21,28,36,.9);border:1px solid var(--rule);border-radius:4px;
 }
-.life-ticker.on{display:flex}
+html[data-theme="light"] .ticker-wrap{background:rgba(240,237,228,.92)}
+.ticker-wrap.on{display:flex}
+.ticker-wrap .panel-bar{pointer-events:auto;padding:5px 8px 4px}
+.life-ticker{
+  display:flex;flex-direction:column;gap:2px;padding:0 4px 4px;
+  pointer-events:none;
+}
 .life-ticker button{
   pointer-events:auto;text-align:left;display:block;
   font-family:var(--mono);font-size:11.5px;line-height:1.35;
@@ -533,11 +569,9 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 
 /* ---------- phones ----------
    The desktop map lays three floating panels over the chart, which works at
-   1700px and buries it at 390px. On a phone the panels dock and collapse: the
-   chips scroll along the top, the player sits on the bottom edge with the
-   event stream folded behind its header, and the legend hides behind a button.
-   Everything above 760px is untouched. */
-.legend-toggle{display:none}
+   1700px and buries it at 390px. On a phone the panels dock: the chips scroll
+   along the top and the player sits on the bottom edge. They fold by the same
+   title bars as on the desktop, and all three start folded. */
 /* a finger needs 44px whatever the screen is wide, so this keys off the
    pointer rather than the viewport — tablets get it too */
 @media(pointer:coarse){
@@ -577,28 +611,18 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .tl-speed{flex-direction:row;margin-left:auto}
   .tl-player input[type=range]{writing-mode:horizontal-tb;-webkit-appearance:auto;
     appearance:auto;width:100%;height:auto;min-height:0}
-  .tl-chart .hist-viewport{display:none}
-  body.events-open .tl-chart .hist-viewport{display:block;height:34vh;flex:none}
-  .tl-chart-bar{display:flex;align-items:center;justify-content:space-between;
-    width:100%;min-height:44px;cursor:pointer}
-  .tl-caret{border:5px solid transparent;border-bottom-color:currentColor;
-    margin-bottom:4px;opacity:.7}
-  body.events-open .tl-caret{border-bottom-color:transparent;
-    border-top-color:currentColor;margin:4px 0 0}
+  /* the dock keeps its transport whatever happens — only the stream folds,
+     because a phone that cannot press play has lost the point of the map */
+  .tl-chart.folded .tl-body{display:flex}
+  .tl-chart.folded .hist-viewport{display:none}
+  .tl-chart:not(.folded) .hist-viewport{height:34vh;flex:none}
+  .panel-bar{min-height:44px}
 
-  /* the legend is reference material, not furniture: park it behind a button */
-  .legend-toggle{
-    display:block;position:absolute;left:10px;bottom:calc(var(--tl-dock,116px) + 10px);
-    z-index:26;width:44px;height:44px;border-radius:50%;
-    background:var(--ink1);border:1px solid var(--rule);box-shadow:var(--shadow);
-    font-family:var(--mono);font-size:17px;color:var(--chalk2);
-  }
-  #stage-tree .legend-toggle{bottom:14px}
-  .legend{display:none;left:10px;right:10px;max-width:none;
-    bottom:calc(var(--tl-dock,116px) + 60px);max-height:52vh;overflow-y:auto;z-index:25}
-  #stage-tree .legend{bottom:64px}
-  .legend.open{display:block}
-  .legend-toggle[aria-expanded="true"]{background:var(--woad);color:var(--ink)}
+  /* the legend sits above the dock and folds to its bar */
+  .legend-wrap{left:10px;right:10px;max-width:none;z-index:25;
+    bottom:calc(var(--tl-dock,116px) + 10px)}
+  #stage-tree .legend-wrap{bottom:14px}
+  .ticker-wrap{max-width:100%}
 
   /* the detail sheet has to clear the docked player */
   .sheet{z-index:40}
@@ -658,8 +682,10 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
           <div class="classic-zoom" id="classic-zoom"><div id="classic-tree"></div></div>
         </div>
       </div>
-      <button class="legend-toggle" id="lgt-tree" aria-expanded="false" aria-controls="lg-tree">?</button>
-      <div class="legend" id="lg-tree"></div>
+      <div class="legend-wrap" id="lgw-tree">
+        <button class="panel-bar" id="lgb-tree" aria-expanded="true" aria-controls="lg-tree"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+        <div class="legend" id="lg-tree"></div>
+      </div>
       <div class="zoomer">
         <button id="zin" aria-label="Zoom +">+</button>
         <button id="zout" aria-label="Zoom −">−</button>
@@ -676,17 +702,22 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
     <div class="stage" id="stage-map">
       <div class="tools tools-map">
         <div class="chipset" id="mapfilters"></div>
-        <div class="life-ticker" id="life-ticker" aria-live="polite"></div>
+        <div class="ticker-wrap" id="tkw">
+          <button class="panel-bar" id="tkb" aria-expanded="true" aria-controls="life-ticker"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+          <div class="life-ticker" id="life-ticker" aria-live="polite"></div>
+        </div>
       </div>
       <div class="map-wrap" id="map-wrap">
         <svg id="map" role="img" aria-label="Carte des lieux"></svg>
         <div class="map-cards" id="map-cards"></div>
       </div>
-      <button class="legend-toggle" id="lgt-map" aria-expanded="false" aria-controls="lg-map">?</button>
-      <div class="legend" id="lg-map"></div>
+      <div class="legend-wrap" id="lgw-map">
+        <button class="panel-bar" id="lgb-map" aria-expanded="true" aria-controls="lg-map"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+        <div class="legend" id="lg-map"></div>
+      </div>
       <div class="tl-chart" id="tl-chart">
-        <button class="tl-chart-bar" id="tl-chart-bar" aria-expanded="false"><span id="tl-chart-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
-        <div class="tl-body">
+        <button class="tl-chart-bar panel-bar" id="tl-chart-bar" aria-expanded="true" aria-controls="tl-body"><span id="tl-chart-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+        <div class="tl-body" id="tl-body">
           <div class="tl-player">
             <input id="sl" type="range" min="1618" max="1992" value="1992" step="1" orient="vertical" aria-label="Année">
             <div class="tl-row">
@@ -810,10 +841,12 @@ const T = {
     livRingEst:'Anneau pointillé — âge (décès estimé)',
     livBand:'Anneau doré — marié',
     livSigil:'Sigle — domaine de métier',
-    livCross:'Croix — sépulture (décès attesté)',
+    livCross:'Pierre pâle — le lieu de la sépulture, une fois la tombe fraîche effacée',
+    livPlaceBar:'Barre et trait — plusieurs foyers d’un même lieu, écartés du point',
     livKin:'Filament — parent et enfant',
     livLives:'Vies',
     evBorn:'Naissance', evWed:'Mariage', evMove:'Installation', evKid:'Enfant', evDied:'Décès',
+    legendTitle:'Légende', logTitle:'Journal des vies',
     inviteT:'Regarder les vies se dérouler',
     inviteP:'La carte porte 374 ans. Lancez la lecture : les foyers se forment, les enfants quittent la maison, les pierres se lèvent.',
     inviteGo:'▶ Commencer en 1618', inviteNo:'Explorer moi-même',
@@ -855,10 +888,12 @@ const T = {
     livRingEst:'Dotted ring — age (death estimated)',
     livBand:'Gold ring — married',
     livSigil:'Sigil — kind of work',
-    livCross:'Cross — grave (death recorded)',
+    livCross:'Faint stone — where they were buried, once the fresh grave has faded',
+    livPlaceBar:'Bar and leader — several households of one place, stood aside from it',
     livKin:'Filament — parent and child',
     livLives:'Lives',
     evBorn:'Born', evWed:'Married', evMove:'Settled', evKid:'Child', evDied:'Died',
+    legendTitle:'Legend', logTitle:'Life log',
     inviteT:'Watch the lives unfold',
     inviteP:'The map carries 374 years. Press play: households form, children leave home, headstones rise.',
     inviteGo:'▶ Start in 1618', inviteNo:'Look around myself',
@@ -3378,7 +3413,6 @@ const LIVING_DEFS = `<defs id="living-defs">
 <symbol id="sil-parent" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.4" cy="2.9" r="1.5"/><path d="M4.4 4.7c1.4 0 2.1 1.1 2.1 2.5v1.2H2.3V7.2c0-1.4.7-2.5 2.1-2.5z"/><path d="M2.9 9.1h1.1v2.6H2.9zM4.8 9.1h1.1v2.6H4.8z"/><circle cx="9.1" cy="6.2" r="1.05"/><path d="M9.1 7.5c.9 0 1.35.6 1.35 1.4v.7H7.75v-.7c0-.8.45-1.4 1.35-1.4z"/><path d="M8.25 10.1h.65v1.6h-.65zM9.3 10.1h.65v1.6H9.3z"/></g></symbol>
 <symbol id="sil-elder" viewBox="0 0 12 12"><g fill="currentColor"><circle cx="4.3" cy="3.7" r="1.5"/><path d="M4.6 5.4c1.3.1 2 1.1 1.85 2.3l-.15 1.2-4.1-.5.15-1.2c.15-1.2 1-2 2.25-1.8z"/><path d="M2.5 9.2h1.1l-.35 2.5H2.15zM4.55 9.45h1.1l.3 2.25h-1.1z"/></g><g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M8.1 5.4v6.2"/></g></symbol>
 <symbol id="sil-grave" viewBox="0 0 12 12"><g fill="currentColor"><path d="M6 2.1c1.85 0 3.15 1.35 3.15 3.1v5.05H2.85V5.2C2.85 3.45 4.15 2.1 6 2.1z"/><path d="M1.7 10.05h8.6v1.55H1.7z"/></g><g fill="none" stroke="#0F141A" stroke-width="0.85" stroke-opacity="0.45" stroke-linecap="round"><path d="M6 4.1v3.6M4.5 5.5h3"/></g></symbol>
-<symbol id="sym-cross" viewBox="0 0 12 12"><g fill="currentColor"><path d="M5.05 1.1h1.9v2.9h2.5v1.9h-2.5v3.7h-1.9V5.9h-2.5V4h2.5z"/><path d="M2.85 9.9h6.3v1.8h-6.3z"/></g></symbol>
 </defs>`;
 
 function ensureLivingDefs() {
@@ -3437,9 +3471,8 @@ function makeLivingNode(p) {
     /* elementsFromPoint skips <g>, so the tap target carries the id itself */
     hit: el('circle', { r: 9, fill: 'transparent', 'data-id': p.id })
   };
-  n.cross.setAttribute('href', '#sym-cross');
   n.hit.style.cursor = 'pointer';
-  g.append(n.halo, n.dust, n.sel, n.ring, n.band, n.core, n.fig, n.sigil, n.cross, n.label, n.hit);
+  g.append(n.halo, n.dust, n.sel, n.ring, n.band, n.core, n.fig, n.sigil, n.label, n.hit);
   return n;
 }
 
@@ -3582,7 +3615,6 @@ function updateLivingNode(p, ctx) {
      it still has to say is whether the date is attested: a recorded burial
      gets a clean stone, a reckoned one a puff of dust as it settles. */
   const cy0 = -figSize * 0.33;
-  sa(n.cross, 'opacity', '0');
   if (grave && !ev.certain && dphase < 1) {
     sa(n.dust, 'cy', cy0.toFixed(2));
     sa(n.dust, 'r', (r + 1.5 + dphase * 6).toFixed(2));
@@ -3748,7 +3780,7 @@ function updateGraves(time, th, lod, scale, dim) {
       let u = graveNodes.get(p.id);
       if (!u) {
         u = el('use', { 'pointer-events': 'none' });
-        u.setAttribute('href', '#sym-cross');
+        u.setAttribute('href', '#sil-grave');
         const [gx, gy] = prj(pl[2], pl[3]);
         const a = p.id * 2.39996, rr = 3.5 + (p.id % 4) * 2.4;
         u.dataset.gx = gx + Math.cos(a) * rr;
@@ -3785,7 +3817,8 @@ function eventPlace(p, ev, kind) {
 
 function hideLifeTicker() {
   if (!tickerBox) return;
-  tickerBox.classList.remove('on');
+  const tw = document.getElementById('tkw');
+  if (tw) tw.classList.remove('on');
   tickerBox.textContent = '';
   tickerSig = '';
 }
@@ -3809,8 +3842,10 @@ function updateLifeTicker(time) {
   const top = rows.slice(0, TICKER_MAX);
   const sig = L + '|' + top.map(r => `${r.id}${r.kind}${r.y}`).join(',');
   if (sig !== tickerSig) {
+    const nWas = tickerBox.childElementCount;
     tickerSig = sig;
     tickerBox.textContent = '';
+    if (nWas !== top.length) requestAnimationFrame(measureMapTools);
     top.forEach(r => {
       const p = get(r.id);
       const ev = LIFE_EV.get(r.id);
@@ -3831,7 +3866,11 @@ function updateLifeTicker(time) {
     const since = time - (+b.dataset.y);
     b.style.opacity = Math.max(0.3, 1 - since / TICKER_YRS).toFixed(2);
   });
-  tickerBox.classList.toggle('on', top.length > 0);
+  const tw = document.getElementById('tkw');
+  if (tw && tw.classList.contains('on') !== (top.length > 0)) {
+    tw.classList.toggle('on', top.length > 0);
+    requestAnimationFrame(measureMapTools);
+  }
 }
 
 function resetLivingNodes() {
@@ -3845,6 +3884,8 @@ function resetLivingNodes() {
    12.4 units across and a child's 8.9 — and the row pitch has to clear the
    name printed under each one. */
 const HH_ROW = 27, HH_ADULT_W = 14, HH_KID_W = 11;
+/* clear space between a village marker and the bracket beside the queue */
+const HH_GAP = 16;
 
 /* The people track the zoom at half rate: double the map and they grow by
    √2, not 2. Drawn at full rate they swamped the map the moment you looked
@@ -3869,12 +3910,18 @@ function livingLayout(time) {
   hh.locs.forEach(g => {
     const [cx, cy] = prj(g.pl[2], g.pl[3]);
     const n = g.units.length;
+    /* One household stands on its village. Several of them cannot — they queue
+       up the map and the outer ones end up nowhere near it — so the queue steps
+       aside and a bracket beside it carries a leader back to the spot. */
+    const widest = Math.max(...g.units.map(u =>
+      u.adults.length * ADULT_W + u.kids.length * KID_W));
+    const shift = n > 1 ? HH_GAP * K + widest / 2 : 0;
     g.units.forEach((u, i) => {
       const uy = cy + (i - (n - 1) / 2) * ROW;
       const w = u.adults.length * ADULT_W + u.kids.length * KID_W;
       const grouped = u.members.length > 1;
       const coupled = u.kind === 'couple';
-      let x = cx - w / 2;
+      let x = cx + shift - w / 2;
       const adultXs = [];
       u.adults.forEach((m, j) => {
         const mx = x + ADULT_W / 2; x += ADULT_W;
@@ -3891,7 +3938,8 @@ function livingLayout(time) {
         slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key,
                           seat: u.adults.length + kidXs.length - 1 });
       });
-      units.push({ u, cx, cy: uy, ay: cy, w, grouped, coupled, adultXs, kidXs, K });
+      units.push({ u, cx: cx + shift, cy: uy, ax: cx, ay: cy, shift, w,
+                   grouped, coupled, adultXs, kidXs, K });
     });
   });
 
@@ -3951,29 +3999,35 @@ function drawHouseholdChrome(layout, ctx) {
   const { th, lod, time, dim } = ctx;
   if (lod < 1) return;
 
-  /* A village with several households queues them above and below the place
-     itself, which puts the outer ones a good way off the spot they belong to.
-     Run a spine down through them from the marker, the same job the leader
-     lines do for the cards. */
-  const spines = new Map();
+  /* Where several households had to step aside from their village, a rule down
+     the near edge of the queue says which of them belong together, and a leader
+     runs from the middle of it back to the marker on the spot. */
+  const groups = new Map();
   layout.units.forEach(un => {
-    const k = un.cx.toFixed(2) + '|' + un.ay.toFixed(2);
-    let s = spines.get(k);
-    if (!s) { s = { cx: un.cx, ay: un.ay, top: un.cy, bot: un.cy, K: un.K }; spines.set(k, s); }
+    if (!un.shift) return;
+    const k = un.ax.toFixed(2) + '|' + un.ay.toFixed(2);
+    let s = groups.get(k);
+    if (!s) { s = { ax: un.ax, ay: un.ay, left: Infinity, top: un.cy, bot: un.cy, K: un.K };
+              groups.set(k, s); }
+    s.left = Math.min(s.left, un.cx - un.w / 2);
     if (un.cy < s.top) s.top = un.cy;
     if (un.cy > s.bot) s.bot = un.cy;
   });
-  spines.forEach(s => {
+  groups.forEach(s => {
     const K = s.K;
-    const reach = Math.max(s.ay - s.top, s.bot - s.ay);
-    if (reach < 6 * K) return;               /* it is standing on the spot */
+    const bx = s.left - 3 * K;
+    const y0 = s.top - 9 * K, y1 = s.bot + 5 * K;
     livingLines.appendChild(el('line', {
-      x1: s.cx.toFixed(1), y1: (s.top - 2 * K).toFixed(1),
-      x2: s.cx.toFixed(1), y2: (s.bot + 2 * K).toFixed(1),
-      stroke: th.chalk3, 'stroke-width': (0.5 * K).toFixed(2), opacity: 0.35
+      x1: bx.toFixed(1), y1: y0.toFixed(1), x2: bx.toFixed(1), y2: y1.toFixed(1),
+      stroke: th.chalk2, 'stroke-width': (0.7 * K).toFixed(2),
+      'stroke-linecap': 'round', opacity: 0.45
+    }));
+    livingLines.appendChild(el('line', {
+      x1: s.ax.toFixed(1), y1: s.ay.toFixed(1), x2: bx.toFixed(1), y2: s.ay.toFixed(1),
+      stroke: th.chalk3, 'stroke-width': (0.5 * K).toFixed(2), opacity: 0.4
     }));
     livingLines.appendChild(el('circle', {
-      cx: s.cx.toFixed(1), cy: s.ay.toFixed(1), r: (1.8 * K).toFixed(2),
+      cx: s.ax.toFixed(1), cy: s.ay.toFixed(1), r: (1.8 * K).toFixed(2),
       fill: 'none', stroke: th.chalk3, 'stroke-width': (0.6 * K).toFixed(2), opacity: 0.6
     }));
   });
@@ -4181,7 +4235,7 @@ function mapOverlayFrame() {
 
 /* The panels floating over the map are part of the furniture: a stack that
    slides under the legend or the event stream is simply unreadable. */
-const PANEL_SEL = ['#stage-map .tools-map', '#lg-map', '#tl-chart'];
+const PANEL_SEL = ['#stage-map .tools-map', '#lgw-map', '#tl-chart'];
 function panelBoxes(fr) {
   const out = [];
   PANEL_SEL.forEach(sel => {
@@ -5222,8 +5276,8 @@ function drawMapLegend() {
     `<div class="t">${t('mapLeg')}</div><div class="ramp" style="background:${rampCss(ERA)}"></div>` +
     `<div class="rl"><span>${YMIN}</span><span>${YMAX}</span></div>`;
   if (mapLiving) {
-    const cross = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true">` +
-      `<use href="#sym-cross" width="12" height="12" x="0" y="0" style="color:var(--chalk2)"></use></svg>`;
+    const cross = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true" style="opacity:.45">` +
+      `<use href="#sil-grave" width="12" height="12" x="0" y="0" style="color:var(--chalk3)"></use></svg>`;
     const stone = `<svg class="leg-sym" viewBox="0 0 12 12" aria-hidden="true">` +
       `<use href="#sil-grave" width="12" height="12" x="0" y="0" style="color:var(--chalk3)"></use></svg>`;
     h += `<div class="t" style="margin-top:8px">${t('living')}</div>` +
@@ -5236,7 +5290,8 @@ function drawMapLegend() {
       `<div><i class="leg-curve"></i>${t('livingMig')}</div>` +
       `<div><i class="leg-dash"></i>${t('livingUnion')}</div>` +
       `<div><i class="leg-fil"></i>${t('livKin')}</div>` +
-      `<div><i class="leg-plinth"></i>${t('livHousehold')}</div>`;
+      `<div><i class="leg-plinth"></i>${t('livHousehold')}</div>` +
+      `<div><i class="leg-bracket"></i>${t('livPlaceBar')}</div>`;
   }
   if (mapTerrain) {
     h += `<div class="t" style="margin-top:8px">${t('terrain')}</div>` +
@@ -5256,29 +5311,49 @@ function drawMapLegend() {
   drawHistChart();
 }
 
-/* ══════════ phone chrome ══════════ */
-/* Below 760px the legend and the event stream fold away so the chart gets the
-   screen. Both are plain toggles; on desktop the CSS leaves them open and the
-   buttons hidden, so none of this is reachable there. */
+/* ══════════ foldable panels ══════════ */
+/* One mechanism for all four: the two legends, the life log and the event
+   stream. Each fold is remembered, so a reader who wants the map bare gets it
+   bare on the way back. A phone starts with everything folded — three panels
+   over a 390px chart leave nothing of the chart. */
 const isPhone = () => matchMedia('(max-width:759px)').matches;
 
-[['lgt-tree', 'lg-tree'], ['lgt-map', 'lg-map']].forEach(([btn, panel]) => {
-  const b = document.getElementById(btn), p = document.getElementById(panel);
-  if (!b || !p) return;
-  b.onclick = () => {
-    const open = p.classList.toggle('open');
-    b.setAttribute('aria-expanded', open);
-    b.textContent = open ? '×' : '?';
-  };
-});
+const PANELS = [
+  { bar: 'lgb-tree',      wrap: 'lgw-tree',  key: 'legend', lab: () => t('legendTitle') },
+  { bar: 'lgb-map',       wrap: 'lgw-map',   key: 'legend', lab: () => t('legendTitle') },
+  { bar: 'tkb',           wrap: 'tkw',       key: 'log',    lab: () => t('logTitle') },
+  { bar: 'tl-chart-bar',  wrap: 'tl-chart',  key: 'events', lab: () => t('histLeg') },
+];
+const foldKey = k => 'boillet-fold-' + k;
 
-const evBar = document.getElementById('tl-chart-bar');
-if (evBar) evBar.onclick = () => {
-  if (!isPhone()) return;
-  const open = document.body.classList.toggle('events-open');
-  evBar.setAttribute('aria-expanded', open);
-  requestAnimationFrame(() => { measureTlDock(); updateHistStream(); renderPersonCards(); });
-};
+function setFold(p, folded, remember) {
+  const w = document.getElementById(p.wrap), b = document.getElementById(p.bar);
+  if (!w || !b) return;
+  w.classList.toggle('folded', folded);
+  b.setAttribute('aria-expanded', String(!folded));
+  if (remember) localStorage.setItem(foldKey(p.key), folded ? '1' : '0');
+  if (p.key === 'events') {
+    requestAnimationFrame(() => { measureTlDock(); updateHistStream(); renderPersonCards(); });
+  }
+  if (p.key === 'log') requestAnimationFrame(measureMapTools);
+}
+
+function drawPanelBars() {
+  PANELS.forEach(p => {
+    const b = document.getElementById(p.bar);
+    if (!b) return;
+    const lab = b.querySelector('.pb-lab') || b.firstElementChild;
+    if (lab) lab.textContent = p.lab();
+  });
+}
+
+PANELS.forEach(p => {
+  const b = document.getElementById(p.bar), w = document.getElementById(p.wrap);
+  if (!b || !w) return;
+  b.onclick = () => setFold(p, !w.classList.contains('folded'), true);
+  const saved = localStorage.getItem(foldKey(p.key));
+  setFold(p, saved != null ? saved === '1' : isPhone(), false);
+});
 
 /* the docked player's height feeds the CSS that positions the legend button,
    and the card solver already treats #tl-chart as a keep-out box */
@@ -5288,8 +5363,19 @@ function measureTlDock() {
   document.documentElement.style.setProperty('--tl-dock',
     isPhone() ? Math.round(el.getBoundingClientRect().height) + 'px' : '0px');
 }
-addEventListener('resize', measureTlDock);
-requestAnimationFrame(measureTlDock);
+/* the left column is chips, then the life log, then the legend — the legend
+   takes whatever the two above it are not using */
+function measureMapTools() {
+  const stage = document.getElementById('stage-map');
+  const tools = stage && stage.querySelector('.tools-map');
+  if (!stage || !tools || !tools.offsetParent) return;
+  const s = stage.getBoundingClientRect(), t = tools.getBoundingClientRect();
+  document.documentElement.style.setProperty('--map-tools-h',
+    Math.max(0, Math.round(t.bottom - s.top)) + 'px');
+}
+function measurePanels() { measureTlDock(); measureMapTools(); }
+addEventListener('resize', measurePanels);
+requestAnimationFrame(measurePanels);
 
 /* Pull the stream up or down to run the years past. The scale is the thing
    being moved, so dragging it up brings the later years to the line. */
@@ -5676,7 +5762,7 @@ function setView(v) {
     });
   }
   /* the docked player has no box until its stage is on screen */
-  if (v === 'map') { requestAnimationFrame(measureTlDock); maybeInvite(); }
+  if (v === 'map') { requestAnimationFrame(measurePanels); maybeInvite(); }
   else inviteBox.hidden = true;
   if (v === 'map' && !mapFitted) { mapFitted = true; requestAnimationFrame(fitMapCore); }
 }
@@ -5696,6 +5782,7 @@ function setLang(l) {
   qEl.placeholder = t('search');
   document.getElementById('sx').textContent = '✕';
   drawInvite();
+  drawPanelBars();
   drawTreeViewChips();
   drawClassicDepthChips();
   drawChips(); drawTree(); drawLegend();
