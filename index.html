@@ -123,6 +123,8 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
   margin-top:3px;opacity:.7;transition:transform .16s ease;
 }
 .folded .tl-caret{transform:rotate(-90deg);margin-top:0}
+.pb-info{display:none;align-items:center;justify-content:center;line-height:0;color:var(--chalk2)}
+.pb-info svg{display:block;width:16px;height:16px}
 .folded>.legend,.folded>.life-ticker{display:none}
 .tl-chart.folded .tl-body{display:none}
 .tl-chart.folded{height:auto;max-height:none}
@@ -625,16 +627,44 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
      because a phone that cannot press play has lost the point of the map */
   .tl-chart.folded .tl-body{display:flex}
   .tl-chart.folded .hist-viewport{display:none}
-  .tl-chart:not(.folded) .hist-viewport{height:34vh;flex:none}
+  .tl-chart:not(.folded) .hist-viewport{height:var(--tl-stream-h,34vh);flex:none}
   /* folded or not, the year stays in the bar and stays big */
   .tl-bar-yr{display:block;font-size:17px}
   .panel-bar{min-height:44px}
+  /* drag the header to resize; caret centered — up when shut, down when open */
+  .tl-chart-bar{
+    position:relative;touch-action:none;cursor:ns-resize;
+  }
+  .tl-chart-bar .tl-caret{
+    position:absolute;left:50%;top:50%;margin:0;
+    border:6px solid transparent;border-top-color:currentColor;
+    transform:translate(-50%,-35%);opacity:.8;
+  }
+  .tl-chart.folded .tl-chart-bar .tl-caret{
+    border-top-color:transparent;border-bottom-color:currentColor;
+    transform:translate(-50%,-65%);
+  }
+  /* slightly smaller transport — still above 36px touch targets */
+  .tl-player{padding:6px 10px 5px;gap:5px}
+  .tl-player button{min-height:36px;min-width:44px;font-size:12px;padding:4px 8px}
+  .tl-player select{min-height:34px;font-size:13px;padding:2px 4px}
+  .tl-row{gap:6px}
+  #sl{height:32px}
+  .tl-speed{font-size:12px;gap:2px}
 
-  /* the legend sits above the dock and folds to its bar */
+  /* the legend sits above the dock; folded, a compact info chip bottom-left */
   .legend-wrap{left:10px;right:10px;max-width:none;z-index:25;
     bottom:calc(var(--tl-dock,116px) + 10px)}
   #stage-tree .legend-wrap{bottom:14px}
-  .ticker-wrap{max-width:100%}
+  #stage-map .legend-wrap.folded{right:auto;width:auto;min-width:0}
+  #stage-map .legend-wrap.folded .panel-bar{
+    min-height:0;width:32px;height:32px;padding:0;justify-content:center;gap:0;
+    letter-spacing:0;text-transform:none;
+  }
+  #stage-map .legend-wrap.folded .pb-lab,
+  #stage-map .legend-wrap.folded .tl-caret{display:none}
+  #stage-map .legend-wrap.folded .pb-info{display:flex}
+  .ticker-wrap{max-width:none;width:100%;align-self:stretch}
 
   /* the detail sheet has to clear the docked player */
   .sheet{z-index:40}
@@ -714,8 +744,8 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
     <div class="stage" id="stage-map">
       <div class="tools tools-map">
         <div class="chipset" id="mapfilters"></div>
-        <div class="ticker-wrap" id="tkw">
-          <button class="panel-bar" id="tkb" aria-expanded="true" aria-controls="life-ticker"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+        <div class="ticker-wrap folded" id="tkw">
+          <button class="panel-bar" id="tkb" aria-expanded="false" aria-controls="life-ticker"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
           <div class="life-ticker" id="life-ticker" aria-live="polite"></div>
         </div>
       </div>
@@ -723,12 +753,12 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
         <svg id="map" role="img" aria-label="Carte des lieux"></svg>
         <div class="map-cards" id="map-cards"></div>
       </div>
-      <div class="legend-wrap" id="lgw-map">
-        <button class="panel-bar" id="lgb-map" aria-expanded="true" aria-controls="lg-map"><span class="pb-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
+      <div class="legend-wrap folded" id="lgw-map">
+        <button class="panel-bar" id="lgb-map" aria-expanded="false" aria-controls="lg-map"><span class="pb-lab"></span><span class="pb-info" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><span class="tl-caret" aria-hidden="true"></span></button>
         <div class="legend" id="lg-map"></div>
       </div>
-      <div class="tl-chart" id="tl-chart">
-        <button class="tl-chart-bar panel-bar" id="tl-chart-bar" aria-expanded="true" aria-controls="tl-body"><span id="tl-chart-lab"></span><span class="tl-bar-yr" id="tl-bar-yr"></span><span class="tl-caret" aria-hidden="true"></span></button>
+      <div class="tl-chart folded" id="tl-chart">
+        <button class="tl-chart-bar panel-bar" id="tl-chart-bar" aria-expanded="false" aria-controls="tl-body"><span id="tl-chart-lab"></span><span class="tl-bar-yr" id="tl-bar-yr"></span><span class="tl-caret" aria-hidden="true"></span></button>
         <div class="tl-body" id="tl-body">
           <div class="tl-player">
             <input id="sl" type="range" min="1618" max="1992" value="1992" step="1" orient="vertical" aria-label="Année">
@@ -2819,8 +2849,10 @@ const zpMap = ZoomPan(mapSvg, mapG, 0.7, 22, syncMapOverlay, mapTap);
 
 const DEPLAB = { '76':[49.72,0.98], '80':[49.94,2.28], '60':[49.44,2.32], '27':[49.14,1.15],
                  '02':[49.62,3.45], '95':[49.08,2.10], '62':[50.48,2.30], '78':[48.86,1.75] };
+/* Family-relevant towns, drawn over the departments. Rouen, Amiens and Dieppe
+   are left to the terrain layer so they are not labelled twice. */
 const MAIN_TOWNS = [
-  ['Rouen', 49.443, 1.099], ['Paris', 48.857, 2.352], ['Beauvais', 49.430, 2.081],
+  ['Paris', 48.857, 2.352], ['Beauvais', 49.430, 2.081],
   ['Abbeville', 50.106, 1.836], ['Gisors', 49.281, 1.777], ['Gamaches', 50.048, 1.557],
   ['Poissy', 48.929, 2.050], ['Vernon', 49.093, 1.489],
   ['Gannes', 49.570, 2.420]
@@ -3880,9 +3912,10 @@ function updateLifeTicker(time) {
     const since = time - (+b.dataset.y);
     b.style.opacity = Math.max(0.3, 1 - since / TICKER_YRS).toFixed(2);
   });
+  /* keep the shell up even in quiet years — an empty log is still a log */
   const tw = document.getElementById('tkw');
-  if (tw && tw.classList.contains('on') !== (top.length > 0)) {
-    tw.classList.toggle('on', top.length > 0);
+  if (tw && !tw.classList.contains('on')) {
+    tw.classList.add('on');
     requestAnimationFrame(measureMapTools);
   }
 }
@@ -5441,15 +5474,22 @@ function drawPanelBars() {
     if (!b) return;
     const lab = b.querySelector('.pb-lab') || b.firstElementChild;
     if (lab) lab.textContent = p.lab();
+    b.setAttribute('aria-label', p.lab());
   });
 }
 
 PANELS.forEach(p => {
   const b = document.getElementById(p.bar), w = document.getElementById(p.wrap);
   if (!b || !w) return;
-  b.onclick = () => setFold(p, !w.classList.contains('folded'), true);
+  b.onclick = () => {
+    if (b.dataset.suppressClick) return;
+    /* on a phone the events dock opens by drag only — a tap would fight the
+       resize gesture and open from a touch that meant to scrub the header */
+    if (p.key === 'events' && isPhone()) return;
+    setFold(p, !w.classList.contains('folded'), true);
+  };
   const saved = localStorage.getItem(foldKey(p.key));
-  setFold(p, saved != null ? saved === '1' : isPhone(), false);
+  setFold(p, saved != null ? saved === '1' : true, false);
 });
 
 /* the docked player's height feeds the CSS that positions the legend button,
@@ -5473,6 +5513,114 @@ function measureMapTools() {
 function measurePanels() { measureTlDock(); measureMapTools(); }
 addEventListener('resize', measurePanels);
 requestAnimationFrame(measurePanels);
+
+/* On a phone, drag the events header to open, resize, or close the stream.
+   Height is remembered; drop below the snap line and it folds shut. A tap
+   still toggles. */
+(function initTlStreamResize() {
+  const bar = document.getElementById('tl-chart-bar');
+  const chart = document.getElementById('tl-chart');
+  const vp = document.getElementById('hist-viewport');
+  const eventsPanel = PANELS.find(p => p.key === 'events');
+  if (!bar || !chart || !vp || !eventsPanel) return;
+
+  const STORAGE_KEY = 'boillet-tl-stream-h';
+  const SNAP_H = 64;
+  const stageH = () => {
+    const stage = document.getElementById('stage-map');
+    return stage ? stage.getBoundingClientRect().height : window.innerHeight;
+  };
+  const defaultH = () => Math.round(stageH() * 0.34);
+  const maxH = () => {
+    const playerH = chart.querySelector('.tl-player')?.offsetHeight || 72;
+    const barH = bar.offsetHeight || 44;
+    return Math.max(SNAP_H, Math.round(stageH() * 0.72 - playerH - barH));
+  };
+
+  function applyHeight(h, { persist = true, clampMin = true } = {}) {
+    if (!isPhone()) {
+      document.documentElement.style.removeProperty('--tl-stream-h');
+      return;
+    }
+    const lo = clampMin ? SNAP_H : 0;
+    h = Math.round(Math.max(lo, Math.min(maxH(), h)));
+    document.documentElement.style.setProperty('--tl-stream-h', h + 'px');
+    if (persist && h >= SNAP_H) localStorage.setItem(STORAGE_KEY, String(h));
+    measureTlDock();
+    if (histEls) updateHistStream();
+    return h;
+  }
+
+  function savedOrDefault() {
+    const saved = +localStorage.getItem(STORAGE_KEY);
+    return Number.isFinite(saved) && saved >= SNAP_H ? saved : defaultH();
+  }
+
+  function loadHeight() {
+    if (!isPhone()) {
+      document.documentElement.style.removeProperty('--tl-stream-h');
+      return;
+    }
+    applyHeight(savedOrDefault());
+  }
+
+  let pid = null, startY = 0, startH = 0, moved = 0, dragging = false;
+
+  bar.addEventListener('pointerdown', e => {
+    if (!isPhone() || e.button > 0) return;
+    pid = e.pointerId;
+    startY = e.clientY;
+    startH = chart.classList.contains('folded') ? 0
+      : (vp.getBoundingClientRect().height || savedOrDefault());
+    moved = 0;
+    dragging = false;
+  });
+  bar.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid || !isPhone()) return;
+    const dy = e.clientY - startY;
+    moved = Math.max(moved, Math.abs(dy));
+    if (moved > 8 && !dragging) {
+      dragging = true;
+      if (chart.classList.contains('folded')) {
+        applyHeight(0, { persist: false, clampMin: false });
+        setFold(eventsPanel, false, true);
+        startH = 0;
+      }
+      try { bar.setPointerCapture(pid); } catch (_) {}
+    }
+    if (!dragging) return;
+    e.preventDefault();
+    applyHeight(startH - dy, { persist: false, clampMin: false });
+  }, { passive: false });
+  const end = e => {
+    if (e.pointerId !== pid) return;
+    if (bar.hasPointerCapture(pid)) { try { bar.releasePointerCapture(pid); } catch (_) {} }
+    if (dragging) {
+      bar.dataset.suppressClick = '1';
+      const h = vp.getBoundingClientRect().height;
+      if (h < SNAP_H) {
+        setFold(eventsPanel, true, true);
+        applyHeight(savedOrDefault(), { persist: false });
+      } else {
+        applyHeight(h, { persist: true });
+      }
+    }
+    pid = null;
+    dragging = false;
+  };
+  bar.addEventListener('pointerup', end);
+  bar.addEventListener('pointercancel', end);
+  bar.addEventListener('click', () => { delete bar.dataset.suppressClick; });
+
+  loadHeight();
+  addEventListener('resize', () => {
+    if (!isPhone()) {
+      document.documentElement.style.removeProperty('--tl-stream-h');
+      return;
+    }
+    applyHeight(savedOrDefault());
+  });
+})();
 
 /* Pull the stream up or down to run the years past. The scale is the thing
    being moved, so dragging it up brings the later years to the line. */
@@ -5776,10 +5924,6 @@ function drawStats() {
 
   <h2>${s.h_shape}</h2>
   <div class="cards">
-    <div class="card wide"><h3>${s.cov}</h3><p>${s.covP}</p>
-      ${barTable(S.gen.map(g => ({ l:`${L==='fr'?'Génération':'Generation'} ${g.g}`,
-        v: g.k/g.tot, n: `${g.k}/${g.tot}`, c: ramp([[0,'#3E4A57'],[0.5,'#6E9CBF'],[1,'#C9A44E']], g.k/g.tot) })))}
-      <p class="note">${s.covN(S.walls)}</p></div>
     <div class="card"><h3>${s.fam}</h3><p>${s.famP}</p>
       ${cols(gv, gapBins, { c:'#6E9E85', always:true })}
       <p class="note">${L==='fr'?'Âge médian du père':'Median father’s age'} ${med(S.genM)} ${L==='fr'?'ans':'yrs'} · ${L==='fr'?'de la mère':'mother’s'} ${med(S.genF)} ${L==='fr'?'ans':'yrs'} · n=${gapAll.length}</p></div>
@@ -5834,6 +5978,13 @@ function drawStats() {
   <div class="cards">
     <div class="card"><h3>${s.sur}</h3><p>&nbsp;</p>${barTable(surRows)}</div>
     <div class="card"><h3>${s.giv}</h3><p>${s.givP}</p>${barTable(givRows)}</div>
+  </div>
+
+  <div class="cards">
+    <div class="card wide"><h3>${s.cov}</h3><p>${s.covP}</p>
+      ${barTable(S.gen.map(g => ({ l:`${L==='fr'?'Génération':'Generation'} ${g.g}`,
+        v: g.k/g.tot, n: `${g.k}/${g.tot}`, c: ramp([[0,'#3E4A57'],[0.5,'#6E9CBF'],[1,'#C9A44E']], g.k/g.tot) })))}
+      <p class="note">${s.covN(S.walls)}</p></div>
   </div>
 
   <div class="foot">${s.foot}</div>`;
