@@ -81,11 +81,13 @@ main{padding-top:calc(var(--bar) + var(--tabs) + env(safe-area-inset-top))}
   height:calc(100dvh - var(--bar) - var(--tabs) - env(safe-area-inset-top));
   touch-action:none;overflow:hidden;
 }
-.stage svg{display:block;width:100%;height:100%;cursor:grab;user-select:none;-webkit-user-select:none}
+.stage svg{display:block;width:100%;height:100%;cursor:grab;user-select:none;-webkit-user-select:none;position:relative;z-index:1}
 .stage svg text{user-select:none;-webkit-user-select:none}
 .stage svg.drag{cursor:grabbing}
 
 .tools{position:absolute;top:10px;left:10px;right:10px;z-index:20;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.stage.has-ruler{--ruler-h:26px}
+.stage.has-ruler .tools{top:calc(var(--ruler-h) + 10px)}
 .tools-map{flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:4px}
 .tools > *{pointer-events:auto}
 .chipset{display:flex;flex-wrap:wrap;gap:0;background:var(--ink1);border:1px solid var(--rule);border-radius:4px;overflow:hidden;box-shadow:var(--shadow)}
@@ -195,10 +197,16 @@ html[data-theme="light"] .legend-wrap{background:rgba(240,237,228,.95)}
 .classic-scroller.drag{cursor:grabbing}
 .classic-scroller .person-card{cursor:pointer;user-select:text;-webkit-user-select:text}
 .classic-scroller .toggle{cursor:pointer;user-select:none;-webkit-user-select:none}
-.classic-ruler{position:sticky;top:0;height:26px;z-index:10;background:var(--ink);border-bottom:1px solid var(--rule);width:100%}
-.classic-ruler .tick{position:absolute;top:0;height:26px;padding-left:8px;border-left:1px solid var(--rule);display:flex;align-items:center;gap:6px;white-space:nowrap}
-.classic-ruler b{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.1em;color:var(--chalk2)}
-.classic-ruler span{font-family:var(--mono);font-size:11px;color:var(--chalk3)}
+.classic-ruler,.tl-ruler{height:var(--ruler-h,26px);z-index:15;background:var(--ink1);border-bottom:1px solid var(--rule2);box-shadow:0 1px 0 rgba(0,0,0,.06)}
+.classic-ruler{position:sticky;top:0;width:100%;z-index:10;background:var(--ink);border-bottom:1px solid var(--rule);box-shadow:none}
+.timeline-wrap{display:none;position:absolute;left:0;right:0;bottom:0;top:var(--ruler-h,26px);overflow:hidden}
+.timeline-wrap.on{display:block}
+.tl-ruler{display:none;position:sticky;top:0;left:0;right:0;width:100%;overflow:hidden;pointer-events:none;flex:none}
+.tl-ruler.on{display:block}
+.classic-ruler .tick,.tl-ruler .tick{position:absolute;top:0;height:var(--ruler-h,26px);padding-left:8px;border-left:1px solid var(--rule);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.classic-ruler b,.tl-ruler b{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.1em;color:var(--chalk)}
+.classic-ruler span,.tl-ruler span{font-family:var(--mono);font-size:11px;color:var(--chalk2)}
+.timeline-wrap svg{display:block;width:100%;height:100%;cursor:grab;user-select:none;-webkit-user-select:none;position:relative;z-index:1}
 .classic-zoom{padding:14px 48px 72px 16px;transform-origin:0 0;width:max-content}
 .branch{display:flex;align-items:center;position:relative}
 .kids{position:relative;display:flex;flex-direction:column;justify-content:center;padding-left:17px}
@@ -236,7 +244,7 @@ html[data-theme="light"] .legend-wrap{background:rgba(240,237,228,.95)}
 .search{position:relative;flex:none}
 .search input{
   font-family:var(--mono);font-size:13px;width:164px;padding:7px 9px;color:var(--chalk);
-  background:var(--ink1);border:1px solid var(--rule);border-radius:4px;box-shadow:0 3px 14px rgba(0,0,0,.5);
+  background:var(--ink1);border:1px solid var(--rule);border-radius:4px;box-shadow:var(--shadow);
 }
 .search input::placeholder{color:var(--chalk3)}
 .results{
@@ -774,7 +782,10 @@ html[data-theme="light"] .hist-ev.on{background:rgba(110,156,191,.16)}
         <div class="chipset" id="classic-depth" style="display:none"></div>
       </div>
       <svg id="fan" role="img" aria-label="Éventail généalogique"></svg>
-      <svg id="timeline" role="img" aria-label="Chronologie généalogique" style="display:none"></svg>
+      <div class="tl-ruler" id="tl-ruler" aria-hidden="true"></div>
+      <div class="timeline-wrap" id="timeline-wrap">
+        <svg id="timeline" role="img" aria-label="Chronologie généalogique"></svg>
+      </div>
       <div class="classic-wrap" id="classic-wrap">
         <div class="classic-scroller" id="classic-scroller">
           <div class="classic-ruler" id="classic-ruler"></div>
@@ -1626,10 +1637,10 @@ function ZoomPan(svg, g, minK, maxK, onSync, onTap) {
 
   S.zoom = f => { const r = svg.getBoundingClientRect(); zoomAt(r.left+r.width/2, r.top+r.height/2, f); };
   S.reset = () => { S.k = 1; S.x = 0; S.y = 0; apply(); };
-  S.focus = (vx, vy, k) => {
+  S.focus = (vx, vy, k, ax = 0.5, ay = 0.5) => {
     S.k = Math.max(minK, Math.min(maxK, k));
     const r = svg.getBoundingClientRect();
-    const c = local(r.left + r.width/2, r.top + r.height/2);
+    const c = local(r.left + r.width * ax, r.top + r.height * ay);
     S.x = c[0] - vx*S.k; S.y = c[1] - vy*S.k; apply();
   };
   return S;
@@ -1669,14 +1680,19 @@ function drawTree() {
 function setTreeView(v) {
   TREE_VIEW = v;
   fan.style.display = v === 'fan' ? '' : 'none';
-  timeline.style.display = v === 'timeline' ? '' : 'none';
+  document.getElementById('timeline-wrap').classList.toggle('on', v === 'timeline');
+  document.getElementById('tl-ruler').classList.toggle('on', v === 'timeline');
   document.getElementById('classic-wrap').classList.toggle('on', v === 'classic');
   document.getElementById('classic-depth').style.display = v === 'classic' ? '' : 'none';
+  document.getElementById('stage-tree').classList.toggle('has-ruler', v === 'timeline' || v === 'classic');
   document.querySelectorAll('#treeview button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tv === v));
   if (VIEW === 'tree') {
     drawTree();
     drawLegend();
     if (v === 'fan' || v === 'timeline') requestAnimationFrame(fitLabels);
+    if (v === 'timeline') {
+      requestAnimationFrame(() => { tlFitWidth(); scheduleTlRulerDraw(); });
+    }
     if (v === 'classic') {
       if (SEL != null) markSel();
       classicFocusRoot(false);
@@ -1823,12 +1839,39 @@ const TL = {
   genGap: 32, openSpan: 70
 };
 const TL_PITCH = TL.rh + TL.vgap;
-const TL_BLOCK = 46;   /* rows between repeats of the year scale */
 const timeline = document.getElementById('timeline');
+const tlRuler = document.getElementById('tl-ruler');
 const tlG = el('g', {});
 timeline.appendChild(tlG);
-const zpTimeline = ZoomPan(timeline, tlG, 0.5, 40, null, (cx, cy) => tapSelectInSvg(timeline, cx, cy));
-let TL_ROW = {}, TL_SPAN = {}, TL_IDS = [], TL_RULES = [], TL_W = 0, TL_H = 0, tlFitted = false;
+const zpTimeline = ZoomPan(timeline, tlG, 0.5, 40, () => tlRulerDraw(), (cx, cy) => tapSelectInSvg(timeline, cx, cy));
+let TL_ROW = {}, TL_SPAN = {}, TL_IDS = [], TL_W = 0, TL_H = 0, tlFitted = false;
+
+function scheduleTlRulerDraw() {
+  requestAnimationFrame(() => {
+    tlRulerDraw();
+    if (!tlRuler.children.length) requestAnimationFrame(tlRulerDraw);
+  });
+}
+
+function tlRulerDraw() {
+  if (!tlRuler || TREE_VIEW !== 'timeline' || !TL_W) return;
+  const m = timeline.getScreenCTM();
+  if (!m) return;
+  const rr = tlRuler.getBoundingClientRect();
+  if (!rr.width) return;
+  tlRuler.innerHTML = '';
+  for (let y = Math.ceil(TL.x0 / 50) * 50; y <= TL.x1; y += 50) {
+    const svgX = tlYearX(y) * zpTimeline.k + zpTimeline.x;
+    const left = new DOMPoint(svgX, 0).matrixTransform(m).x - rr.left;
+    if (left < -48 || left > rr.width + 8) continue;
+    const tick = document.createElement('div');
+    tick.className = 'tick';
+    tick.style.left = left + 'px';
+    if (y % 100 === 0) tick.innerHTML = '<b>' + y + '</b>';
+    else tick.innerHTML = '<span>' + y + '</span>';
+    tlRuler.appendChild(tick);
+  }
+}
 
 function tlYearX(y) { return TL.ml + (y - TL.x0) * TL.px; }
 
@@ -1845,19 +1888,15 @@ function tlInk() {
 function tlLayoutRows() {
   TL_ROW = {};
   TL_IDS = [];
-  TL_RULES = [TL.mt - 16];
   let n = 0, y = TL.mt;
   (function walk(id) {
     if (!has(id)) return;
     walk(id * 2);
-    /* the chart runs many screens deep, so leave gutters for a repeated scale */
-    if (n && n % TL_BLOCK === 0) { TL_RULES.push(y + 15); y += 28; }
     TL_ROW[id] = { cy: y + TL.rh / 2, yTop: y, row: n++ };
     TL_IDS.push(id);
     y += TL_PITCH;
     walk(id * 2 + 1);
   })(1);
-  TL_RULES.push(y + 18);
   return y + TL.mb;
 }
 
@@ -2004,16 +2043,6 @@ function drawTimeline() {
       stroke: century ? ink.gridC : ink.grid, 'stroke-width': century ? 0.9 : 0.5
     }));
   }
-  TL_RULES.forEach(ly => {
-    for (let y = Math.ceil(TL.x0 / 50) * 50; y <= TL.x1; y += 50) {
-      const tx = el('text', {
-        x: tlYearX(y), y: ly, 'text-anchor': 'middle', fill: ink.axis,
-        'font-family': 'IBM Plex Mono, monospace', 'font-size': 11
-      });
-      tx.textContent = y;
-      grid.appendChild(tx);
-    }
-  });
   tlG.appendChild(grid);
 
   const links = el('g', { 'pointer-events': 'none' });
@@ -2076,19 +2105,19 @@ function drawTimeline() {
   requestAnimationFrame(() => {
     fitLabels();
     if (!tlFitted && timeline.getBoundingClientRect().width) { tlFitted = true; tlFitWidth(); }
+    scheduleTlRulerDraw();
   });
 }
 
 /* Fitting all 283 rows on screen would make every name unreadable, so "fit"
-   means the full sweep of years at a legible size, parked on the end of the
-   tree — the père Boillet and the generations closest to him. */
+   means the full sweep of years at a legible size, with Jean Boillet — the
+   youngest, at the right edge of the chart — anchored on the right centre. */
 function tlFitWidth() {
   const r = timeline.getBoundingClientRect();
-  if (!r.width || !TL_W || !TL_ROW[1]) return;
+  if (!r.width || !TL_W || !TL_ROW[1] || !TL_SPAN[1]) return;
   const base = Math.min(r.width / TL_W, r.height / TL_H);
   const k = (r.width / TL_W) / base * 0.98;
-  const visible = r.height / (base * k);
-  zpTimeline.focus(TL_W / 2, Math.max(visible / 2, TL_H - visible / 2), k);
+  zpTimeline.focus(TL_SPAN[1].x0, TL_ROW[1].cy, k, 0.85, 0.5);
 }
 zpTimeline.reset = tlFitWidth;
 
@@ -5042,9 +5071,21 @@ function drawTerrain(parent) {
   const g = el('g', { id: 'map-terrain', 'pointer-events': 'none' });
   const path = pts => pts.map(c => prj(c[1], c[0]).map(n => n.toFixed(1)).join(',')).join(' ');
 
-  TERRAIN.sea.forEach(ring => {
-    g.appendChild(el('polygon', { points: path(ring), fill: water, 'fill-opacity': 0.55 }));
-  });
+  /* Sea fills the map frame, cut to the department polygons from the original
+     SVG map. A mask keeps the land/water edge aligned with the base map layer
+     even where coastlines extend past the frame. */
+  const defs = el('defs', {});
+  const mask = el('mask', { id: 'map-sea-mask' });
+  mask.appendChild(el('rect', { x: 0, y: 0, width: MW.toFixed(1), height: MH.toFixed(1), fill: 'white' }));
+  DATA.deps.forEach(d => d.rings.forEach(r => {
+    mask.appendChild(el('polygon', { points: path(r), fill: 'black' }));
+  }));
+  defs.appendChild(mask);
+  g.appendChild(defs);
+  g.appendChild(el('rect', {
+    x: 0, y: 0, width: MW.toFixed(1), height: MH.toFixed(1),
+    fill: water, 'fill-opacity': 0.55, mask: 'url(#map-sea-mask)'
+  }));
   TERRAIN.towns.forEach(ring => {
     g.appendChild(el('polygon', { points: path(ring), fill: town, 'fill-opacity': 0.55 }));
   });
@@ -6197,6 +6238,7 @@ function setView(v) {
   if (v === 'tree') {
     requestAnimationFrame(() => {
       if (TREE_VIEW === 'fan' || TREE_VIEW === 'timeline') fitLabels();
+      if (TREE_VIEW === 'timeline') { tlFitWidth(); scheduleTlRulerDraw(); }
     });
   }
   /* the docked player has no box until its stage is on screen */
@@ -6271,6 +6313,7 @@ window.addEventListener('resize', () => {
   if (VIEW === 'tree') {
     fanRect = null; fitLabels();
     if (TREE_VIEW === 'classic') classicFitK = classicComputeFitK();
+    if (TREE_VIEW === 'timeline') scheduleTlRulerDraw();
     if (SEL != null) { const id = SEL; SEL = null; select(id); }
   }
 });
