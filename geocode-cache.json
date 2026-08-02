@@ -100,9 +100,14 @@
     "display": "Vieux-Rouen-sur-Bresle, Dieppe, Seine-Maritime, Normandie, France métropolitaine, 76390, France"
   },
   "Paris|75": {
-    "la": 48.8408006,
-    "lo": 2.2412871,
-    "display": "75, Rue de Paris, Les Princes - Marmottan, Les Princes-Marmottan, Boulogne-Billancourt, Hauts-de-Seine, Île-de-France, France métropolitaine, 92100, France"
+    "la": 48.8534951,
+    "lo": 2.3483915,
+    "display": "Paris, Île-de-France, France métropolitaine, France"
+  },
+  "Évecquemont|78": {
+    "la": 49.0145808,
+    "lo": 1.9466257,
+    "display": "Évecquemont, Mantes-la-Jolie, Yvelines, Île-de-France, France métropolitaine, 78740, France"
   },
   "Boutencourt|60": {
     "la": 49.3199872,
