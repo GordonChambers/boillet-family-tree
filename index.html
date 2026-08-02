@@ -2268,48 +2268,6 @@ function gotoPerson(id) {
 
 let PENDING = [];
 const FAN_LABEL_INK = '#E8E2D5';
-const FAN_LABEL_BG = 'rgba(15,20,26,0.78)';
-
-function applyFanLabelBgs() {
-  if (TREE_VIEW !== 'fan') return;
-  const pad = 2.8;
-
-  function placeBg(container) {
-    if (container.querySelector('.label-bg')) return;
-    if (![...container.querySelectorAll('text')].some(t => t.textContent)) return;
-    const bb = container.getBBox();
-    if (bb.width < 0.3 || bb.height < 0.3) return;
-    const h = bb.height + pad * 2;
-    const rx = Math.min(h / 2, 5);
-    container.insertBefore(el('rect', {
-      class: 'label-bg',
-      x: (bb.x - pad).toFixed(2),
-      y: (bb.y - pad).toFixed(2),
-      width: (bb.width + pad * 2).toFixed(2),
-      height: h.toFixed(2),
-      rx: rx.toFixed(2), ry: rx.toFixed(2),
-      fill: FAN_LABEL_BG,
-      'pointer-events': 'none'
-    }), container.firstChild);
-  }
-
-  fanG.querySelectorAll('g[data-id]').forEach(g => {
-    const tx = g.querySelector('text');
-    if (!tx || tx.getAttribute('fill') !== FAN_LABEL_INK) return;
-    placeBg(g);
-  });
-
-  fanG.querySelectorAll('text[data-id]').forEach(tx => {
-    if (tx.getAttribute('fill') !== FAN_LABEL_INK || !tx.textContent) return;
-    const g = el('g', { 'data-id': tx.getAttribute('data-id') });
-    tx.removeAttribute('data-id');
-    tx.parentNode.insertBefore(g, tx);
-    g.appendChild(tx);
-    g.__lod = tx.__lod;
-    placeBg(g);
-  });
-}
-
 /* Labels are about seventy percent of what the fan costs to paint, and at any
    given zoom most of them are either too small to read or off the screen
    altogether. Culling those two groups is what makes zooming smooth: the
@@ -2423,7 +2381,6 @@ function fitLabels() {
   });
   PENDING = [];
   if (TREE_VIEW === 'fan') {
-    applyFanLabelBgs();
     collectFanLabels();
     measureFan();
     fanLabelLod();
