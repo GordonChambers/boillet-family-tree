@@ -436,6 +436,34 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   flex:1;min-height:80px;width:22px;accent-color:var(--woad);margin:0;
 }
 
+/* The front door to the map. It sits over the middle of the map on the way in
+   and gets out of the way for good the moment it is answered either way. */
+.map-invite{
+  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:34;
+  width:min(400px,calc(100% - 40px));padding:20px 22px 18px;
+  background:var(--ink1);border:1px solid var(--rule);border-radius:8px;
+  box-shadow:var(--shadow);text-align:left;
+}
+.map-invite[hidden]{display:none}
+.map-invite .x{
+  position:absolute;top:6px;right:8px;width:32px;height:32px;line-height:1;
+  color:var(--chalk3);font-size:15px;
+}
+.map-invite .x:hover{color:var(--chalk)}
+.mi-t{font-family:var(--serif);font-size:21px;color:var(--chalk);margin-right:28px}
+.mi-p{margin:8px 0 14px;font-size:15px;line-height:1.5;color:var(--chalk2)}
+.mi-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mi-go{
+  font-family:var(--mono);font-size:14px;padding:10px 16px;border-radius:4px;
+  background:var(--woad);color:var(--ink0);font-weight:600;min-height:42px;
+}
+.mi-go:hover{filter:brightness(1.08)}
+.mi-no{
+  font-family:var(--mono);font-size:13px;padding:10px 12px;border-radius:4px;
+  border:1px solid var(--rule2);color:var(--chalk3);min-height:42px;
+}
+.mi-no:hover{color:var(--chalk2);border-color:var(--woad)}
+
 .tl-chart{
   position:absolute;top:10px;right:10px;left:auto;bottom:auto;z-index:24;
   width:min(430px,calc(100% - 20px));max-height:calc(100% - 20px);
@@ -598,13 +626,13 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 </header>
 
 <nav class="tabs" role="tablist">
-  <button role="tab" aria-selected="true"  data-view="tree" id="t-tree">Arbre</button>
+  <button role="tab" aria-selected="true"  data-view="stats" id="t-stats">Chiffres</button>
   <button role="tab" aria-selected="false" data-view="map"  id="t-map">Carte</button>
-  <button role="tab" aria-selected="false" data-view="stats" id="t-stats">Chiffres</button>
+  <button role="tab" aria-selected="false" data-view="tree" id="t-tree">Arbre</button>
 </nav>
 
 <main>
-  <section class="view on" id="v-tree">
+  <section class="view" id="v-tree">
     <div class="stage" id="stage-tree">
       <div class="tools">
         <div class="search">
@@ -678,10 +706,19 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
         <button id="mzout" aria-label="Zoom −">−</button>
         <button id="mzfit">FIT</button>
       </div>
+      <div class="map-invite" id="map-invite" role="dialog" aria-labelledby="mi-t" hidden>
+        <button class="x" id="mi-x" aria-label="Fermer">✕</button>
+        <div class="mi-t" id="mi-t"></div>
+        <p class="mi-p" id="mi-p"></p>
+        <div class="mi-row">
+          <button class="mi-go" id="mi-go"></button>
+          <button class="mi-no" id="mi-no"></button>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="view" id="v-stats"><div class="wrap" id="stats"></div></section>
+  <section class="view on" id="v-stats"><div class="wrap" id="stats"></div></section>
 </main>
 
 <aside class="sheet" id="sheet" aria-live="polite">
@@ -700,7 +737,7 @@ const get = id => P[String(id)];
 
 /* ══════════ language ══════════ */
 let L = 'fr';
-let VIEW = 'tree';
+let VIEW = 'stats';
 const MON = {
   fr: ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],
   en: ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -770,6 +807,9 @@ const T = {
     livKin:'Filament — parent et enfant',
     livLives:'Vies',
     evBorn:'Naissance', evWed:'Mariage', evMove:'Installation', evKid:'Enfant', evDied:'Décès',
+    inviteT:'Regarder les vies se dérouler',
+    inviteP:'La carte porte 374 ans. Lancez la lecture : les foyers se forment, les enfants quittent la maison, les pierres se lèvent.',
+    inviteGo:'▶ Commencer en 1618', inviteNo:'Explorer moi-même',
     themeLight:'Mode clair', themeDark:'Mode sombre',
     at:'à', evAt:n=>`${n} acte${n>1?'s':''}`
   },
@@ -812,6 +852,9 @@ const T = {
     livKin:'Filament — parent and child',
     livLives:'Lives',
     evBorn:'Born', evWed:'Married', evMove:'Settled', evKid:'Child', evDied:'Died',
+    inviteT:'Watch the lives unfold',
+    inviteP:'The map carries 374 years. Press play: households form, children leave home, headstones rise.',
+    inviteGo:'▶ Start in 1618', inviteNo:'Look around myself',
     themeLight:'Light mode', themeDark:'Dark mode',
     at:'at', evAt:n=>`${n} record${n>1?'s':''}`
   }
@@ -1256,7 +1299,7 @@ function lineCol(p) {
   return base;
 }
 
-let MODE = 'line';
+let MODE = 'gender';
 function colOf(p) {
   switch (MODE) {
     case 'line':  return lineCol(p);
@@ -2570,7 +2613,7 @@ function select(id) {
 }
 
 /* ══════════ colour-by chips + legend ══════════ */
-const MODES = [['line','by_line'],['era','by_era'],['life','by_life'],['trade','by_trade'],['gender','by_gender'],['region','by_region']];
+const MODES = [['gender','by_gender'],['line','by_line'],['era','by_era'],['life','by_life'],['trade','by_trade'],['region','by_region']];
 const MODE_TITLE = { line:'lineage', era:'era', life:'life', trade:'trade', gender:'gender', region:'region' };
 const cbEl = document.getElementById('colorby'), lgTree = document.getElementById('lg-tree');
 
@@ -2778,12 +2821,11 @@ const TERRAIN={"rivers":[{"n":"Marne","r":9,"c":[[2.7959,48.9433],[2.7217,48.920
 
 const MAP_LAYERS = ['b', 'u', 'd', 'mig'];
 let mapTerrain = localStorage.getItem('boillet-terrain') === '1';
-let mapLiving = false;
+let mapLiving = true;
 /* Fourteen cards need more room than a phone has; the chip turns them on for
    anyone who wants them. Everywhere else they stay on by default. */
-const PHONE_AT_LOAD = matchMedia('(max-width:759px)').matches;
-let mapShowCards = !PHONE_AT_LOAD;
-let mapLayers = { b:true, u:true, d:true, mig:false };
+let mapShowCards = false;
+let mapLayers = { b:false, u:false, d:false, mig:false };
 let mapTime = YMAX, mapYearFloor = YMAX, playing = null, playSpeed = 1, lastFrame = 0;
 const YRS_PER_SEC = 3;
 const MIG_YRS = 4;
@@ -5128,6 +5170,7 @@ function tickFrame(now) {
 }
 
 function togglePlay() {
+  if (typeof closeInvite === 'function') closeInvite();
   if (playing) { stopPlay(); return; }
   if (mapTime >= YMAX) setYear(YMIN);
   lastFrame = 0;
@@ -5282,6 +5325,32 @@ requestAnimationFrame(measureTlDock);
     setYear(mapTime + Math.sign(e.deltaY) * (e.shiftKey ? 10 : 1));
   }, { passive: false });
 })();
+
+/* The invitation to press play. Shown once on the way into the map, and never
+   again this visit once it has been answered — including by pressing play
+   somewhere else, which answers it. */
+let inviteAnswered = false;
+const inviteBox = document.getElementById('map-invite');
+function drawInvite() {
+  document.getElementById('mi-t').textContent = t('inviteT');
+  document.getElementById('mi-p').textContent = t('inviteP');
+  document.getElementById('mi-go').textContent = t('inviteGo');
+  document.getElementById('mi-no').textContent = t('inviteNo');
+  document.getElementById('mi-x').setAttribute('aria-label', L === 'fr' ? 'Fermer' : 'Close');
+}
+function closeInvite() { inviteAnswered = true; inviteBox.hidden = true; }
+function maybeInvite() {
+  if (inviteAnswered || playing) return;
+  drawInvite();
+  inviteBox.hidden = false;
+}
+document.getElementById('mi-x').onclick = closeInvite;
+document.getElementById('mi-no').onclick = closeInvite;
+document.getElementById('mi-go').onclick = () => {
+  closeInvite();
+  setYear(YMIN);
+  if (!playing) togglePlay();
+};
 
 document.getElementById('tl-play').onclick = togglePlay;
 document.getElementById('tl-step-b').onclick = () => stepYear(-10);
@@ -5603,7 +5672,8 @@ function setView(v) {
     });
   }
   /* the docked player has no box until its stage is on screen */
-  if (v === 'map') requestAnimationFrame(measureTlDock);
+  if (v === 'map') { requestAnimationFrame(measureTlDock); maybeInvite(); }
+  else inviteBox.hidden = true;
   if (v === 'map' && !mapFitted) { mapFitted = true; requestAnimationFrame(fitMapCore); }
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
@@ -5621,6 +5691,7 @@ function setLang(l) {
   document.getElementById('t-stats').textContent = t('stats');
   qEl.placeholder = t('search');
   document.getElementById('sx').textContent = '✕';
+  drawInvite();
   drawTreeViewChips();
   drawClassicDepthChips();
   drawChips(); drawTree(); drawLegend();
@@ -5652,7 +5723,10 @@ function typingTarget(el) {
   return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el.isContentEditable;
 }
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeSheet(); return; }
+  if (e.key === 'Escape') {
+    if (inviteBox && !inviteBox.hidden) { closeInvite(); return; }
+    closeSheet(); return;
+  }
   if (VIEW !== 'map' || e.ctrlKey || e.metaKey || e.altKey) return;
   if (typingTarget(e.target)) return;
   if (e.key === ' ' || e.key === 'Spacebar') {
@@ -5675,7 +5749,7 @@ ensureLivingDefs();
 applyTheme();
 setYear(YMAX);
 setLang('fr');
-setView('tree');
+setView('stats');
 
 /* opening reveal: rings draw outward (fan view only) */
 if (!matchMedia('(prefers-reduced-motion: reduce)').matches && TREE_VIEW === 'fan') {
