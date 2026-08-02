@@ -587,12 +587,16 @@ html[data-theme="light"] .map-year{text-shadow:0 1px 6px rgba(247,245,239,.9)}
   position:absolute;left:26px;right:8px;padding:4px 8px 4px 9px;
   font-family:var(--mono);font-size:13px;line-height:1.4;color:var(--chalk2);
   border-left:2px solid var(--hist-fr);
-  transition:top .22s cubic-bezier(.25,.8,.35,1),opacity .16s linear;pointer-events:none;
+  transition:top .22s cubic-bezier(.25,.8,.35,1),opacity .16s linear,background .16s linear,color .16s linear;pointer-events:none;
   min-height:22px;
 }
 .hist-ev.reg{border-left-color:var(--hist-reg)}
 .hist-ev.loc{border-left-color:var(--hist-loc)}
-.hist-ev.on{color:var(--chalk);opacity:1!important;z-index:2}
+.hist-ev.on{
+  color:var(--chalk);opacity:1!important;z-index:2;
+  background:rgba(110,156,191,.12);border-left-width:3px;
+}
+html[data-theme="light"] .hist-ev.on{background:rgba(110,156,191,.16)}
 .hist-ev.warp{transition:none!important}
 .hist-line{display:block;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 
@@ -5326,6 +5330,46 @@ function layoutHistEvents(items, minGap) {
   return items;
 }
 
+/* Active events own the now-line: a single one sits on it, several stack as a
+   block centred on it. Neighbours that the general pass mixed into the cluster
+   are walked away above and below so they cannot shove the reading off the mark. */
+function pinActiveHistEvents(items, center, minGap) {
+  const ons = items.filter(it => it.on).sort((a, b) => a.i - b.i);
+  if (!ons.length) return items;
+  const blockH = ons.reduce((s, x) => s + x.h, 0) + minGap * Math.max(0, ons.length - 1);
+  let y = center - blockH / 2;
+  ons.forEach(it => {
+    it.top = y;
+    it.boxCy = y + it.h / 2;
+    y += it.h + minGap;
+  });
+  const pinTop = ons[0].top;
+  const pinBot = ons[ons.length - 1].top + ons[ons.length - 1].h;
+  const reserved = new Set(ons);
+  const others = items.filter(it => !reserved.has(it))
+    .sort((a, b) => a.anchorY - b.anchorY || a.i - b.i);
+  const above = others.filter(it => it.anchorY < center);
+  const below = others.filter(it => it.anchorY >= center);
+  y = pinTop - minGap;
+  for (let i = above.length - 1; i >= 0; i--) {
+    const it = above[i];
+    const natural = it.anchorY - it.h / 2;
+    const top = Math.min(natural, y - it.h);
+    it.top = top;
+    it.boxCy = top + it.h / 2;
+    y = top - minGap;
+  }
+  y = pinBot + minGap;
+  below.forEach(it => {
+    const natural = it.anchorY - it.h / 2;
+    const top = Math.max(natural, y);
+    it.top = top;
+    it.boxCy = top + it.h / 2;
+    y = top + it.h + minGap;
+  });
+  return items;
+}
+
 function histScopeColor(s) {
   const root = getComputedStyle(document.documentElement);
   const key = s === 'fr' ? '--hist-fr' : s === 'reg' ? '--hist-reg' : '--hist-loc';
@@ -5416,11 +5460,20 @@ function updateHistStream() {
     const [y0, y1] = histSpan(ev);
     if (t < y0 - win || t > y1 + win) {
       if (node.style.display !== 'none') { node.style.display = 'none'; node.dataset.off = '1'; }
+      node.classList.remove('on');
       return;
     }
-    const mid = (y0 + y1) / 2;
-    const anchorY = center + (mid - t) * pxYr;
-    const on = t >= y0 && t <= y1;
+    /* Approach the start, ride with now while active, then leave from the end —
+       so a lone event passes under the now-line in its year, and a long war
+       stays on the line for its whole span. Several concurrent events all want
+       the centre and the stacker spreads them either side.
+       Point events (y0 === y1) only last an instant on the number line, so the
+       highlight holds for that whole calendar year — long enough to read as you
+       play past. */
+    const activeEnd = y1 + 1;
+    const on = t >= y0 && t < activeEnd;
+    const focusY = t < y0 ? y0 : t >= activeEnd ? y1 : t;
+    const anchorY = center + (focusY - t) * pxYr;
     const dist = on ? 0 : Math.min(Math.abs(t - y0), Math.abs(t - y1));
     /* One curve for how present an event is: nothing at the edge of the
        window, full within a dozen years of now. It drives both the fade and
@@ -5434,6 +5487,7 @@ function updateHistStream() {
   });
 
   layoutHistEvents(active, HIST_GAP);
+  pinActiveHistEvents(active, center, HIST_GAP);
 
   /* An item coming back from hidden still carries the top it had when it left,
      and the transition would fly it across the panel to get here — that was
