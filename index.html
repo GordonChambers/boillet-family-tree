@@ -428,7 +428,7 @@ h2:first-of-type{margin-top:0}
 #map-callouts line,#map-callouts path{vector-effect:non-scaling-stroke}
 
 .ticker-wrap{
-  display:none;flex-direction:column;max-width:min(430px,32vw);
+  display:none;flex-direction:column;max-width:min(560px,38vw);
   background:rgba(21,28,36,.9);border:1px solid var(--rule);border-radius:4px;
 }
 html[data-theme="light"] .ticker-wrap{background:rgba(240,237,228,.92)}
@@ -642,7 +642,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 <script>
 (function(){
   var t = localStorage.getItem('boillet-theme');
-  if (t === 'light') document.documentElement.dataset.theme = 'light';
+  document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light';
 })();
 </script>
 </head>
@@ -1207,7 +1207,7 @@ function bornDetail(p, id) {
   return (datePart || '') + parents;
 }
 
-let THEME = localStorage.getItem('boillet-theme') || 'dark';
+let THEME = localStorage.getItem('boillet-theme') || 'light';
 function applyTheme() {
   document.documentElement.dataset.theme = THEME;
   const btn = document.getElementById('theme');
@@ -3897,6 +3897,51 @@ function householdScale() {
   return Math.min(2.4, 1 / Math.sqrt(Math.max(0.05, rel)));
 }
 
+/* Where each place's queue ended up last frame. A household forming or dying
+   changes the height of its queue, which changes the answer for everything it
+   touches; solved from nothing each frame that lands as a jump, so the solver
+   is seeded from where things already are and walks part of the way. */
+const hhOff = new Map();
+const HH_EASE = 0.25;
+
+/* Push the queues apart until they stop sharing ground. Deterministic — same
+   boxes in, same answer out — so a place does not twitch between frames while
+   the years run, and bounded, so nobody is shoved so far from their village
+   that the leader line stops being believable. */
+function separateHouseholds(boxes, K) {
+  if (boxes.length < 2) return;
+  const PAD = 4 * K, MAXOFF = 70 * K, EASE = 0.5;
+  for (let pass = 0; pass < 60; pass++) {
+    let hit = false;
+    for (let i = 0; i < boxes.length; i++) {
+      const a = boxes[i];
+      for (let j = i + 1; j < boxes.length; j++) {
+        const b = boxes[j];
+        const dx = (b.cx + b.ox + b.dx) - (a.cx + a.ox + a.dx);
+        const dy = (b.cy + b.dy) - (a.cy + a.dy);
+        const ox = (a.w + b.w) / 2 + PAD - Math.abs(dx);
+        const oy = (a.h + b.h) / 2 + PAD - Math.abs(dy);
+        if (ox <= 0 || oy <= 0) continue;
+        hit = true;
+        /* out along whichever axis is the shorter way clear; two places at the
+           very same spot break the tie on their order, which is stable */
+        if (ox < oy) {
+          const s = (dx || 1) > 0 ? ox * EASE / 2 : -ox * EASE / 2;
+          a.dx -= s; b.dx += s;
+        } else {
+          const s = (dy || 1) > 0 ? oy * EASE / 2 : -oy * EASE / 2;
+          a.dy -= s; b.dy += s;
+        }
+      }
+    }
+    for (const b of boxes) {
+      const d = Math.hypot(b.dx, b.dy);
+      if (d > MAXOFF) { b.dx *= MAXOFF / d; b.dy *= MAXOFF / d; }
+    }
+    if (!hit) break;
+  }
+}
+
 function livingLayout(time) {
   const shown = ALL.filter(p => livingRenderable(p, time));
   const settled = [], moving = [];
@@ -3907,7 +3952,11 @@ function livingLayout(time) {
   const K = householdScale();
   const ROW = HH_ROW * K, ADULT_W = HH_ADULT_W * K, KID_W = HH_KID_W * K;
 
-  hh.locs.forEach(g => {
+  /* Measure every place's queue before anybody sits down. Villages a few
+     kilometres apart put their households on the same patch of map, and a seat
+     assigned before the queues have been pushed apart is a seat in the wrong
+     place. */
+  const boxes = hh.locs.map(g => {
     const [cx, cy] = prj(g.pl[2], g.pl[3]);
     const n = g.units.length;
     /* One household stands on its village. Several of them cannot — they queue
@@ -3916,6 +3965,31 @@ function livingLayout(time) {
     const widest = Math.max(...g.units.map(u =>
       u.adults.length * ADULT_W + u.kids.length * KID_W));
     const shift = n > 1 ? HH_GAP * K + widest / 2 : 0;
+    const x0 = n > 1 ? cx : cx - widest / 2, x1 = cx + shift + widest / 2;
+    return { g, key: g.key, cx, cy, n, shift, dx: 0, dy: 0,
+             w: x1 - x0, h: n * ROW + 6 * K, ox: (x0 + x1) / 2 - cx };
+  });
+  /* a deliberate jump through the years re-solves outright; one frame's worth
+     of drift walks there instead */
+  const warp = Math.abs(time - seatT) > 3;
+  if (warp) hhOff.clear();
+  boxes.forEach(b => {
+    const o = hhOff.get(b.key);
+    if (o) { b.dx = o[0]; b.dy = o[1]; }
+  });
+  separateHouseholds(boxes, K);
+  boxes.forEach(b => {
+    const o = hhOff.get(b.key);
+    if (o && !warp) {
+      b.dx = o[0] + (b.dx - o[0]) * HH_EASE;
+      b.dy = o[1] + (b.dy - o[1]) * HH_EASE;
+    }
+    hhOff.set(b.key, [b.dx, b.dy]);
+  });
+
+  boxes.forEach(bx => {
+    const { g, n, shift } = bx;
+    const cx = bx.cx + bx.dx, cy = bx.cy + bx.dy;
     g.units.forEach((u, i) => {
       const uy = cy + (i - (n - 1) / 2) * ROW;
       const w = u.adults.length * ADULT_W + u.kids.length * KID_W;
@@ -3938,7 +4012,8 @@ function livingLayout(time) {
         slots.set(k.id, { grouped: true, coupled: false, figK: 0.68, unit: u.key,
                           seat: u.adults.length + kidXs.length - 1 });
       });
-      units.push({ u, cx: cx + shift, cy: uy, ax: cx, ay: cy, shift, w,
+      units.push({ u, cx: cx + shift, cy: uy, ax: bx.cx, ay: bx.cy,
+                   off: shift > 0 || Math.hypot(bx.dx, bx.dy) > 5 * K, w,
                    grouped, coupled, adultXs, kidXs, K });
     });
   });
@@ -4004,26 +4079,31 @@ function drawHouseholdChrome(layout, ctx) {
      runs from the middle of it back to the marker on the spot. */
   const groups = new Map();
   layout.units.forEach(un => {
-    if (!un.shift) return;
+    if (!un.off) return;
     const k = un.ax.toFixed(2) + '|' + un.ay.toFixed(2);
     let s = groups.get(k);
-    if (!s) { s = { ax: un.ax, ay: un.ay, left: Infinity, top: un.cy, bot: un.cy, K: un.K };
+    if (!s) { s = { ax: un.ax, ay: un.ay, left: Infinity, right: -Infinity,
+                    top: un.cy, bot: un.cy, K: un.K };
               groups.set(k, s); }
     s.left = Math.min(s.left, un.cx - un.w / 2);
+    s.right = Math.max(s.right, un.cx + un.w / 2);
     if (un.cy < s.top) s.top = un.cy;
     if (un.cy > s.bot) s.bot = un.cy;
   });
   groups.forEach(s => {
     const K = s.K;
-    const bx = s.left - 3 * K;
+    /* the rule goes on whichever side of the queue the village is on */
+    const near = s.ax <= (s.left + s.right) / 2;
+    const bx = near ? s.left - 3 * K : s.right + 3 * K;
     const y0 = s.top - 9 * K, y1 = s.bot + 5 * K;
+    const ly = Math.max(y0, Math.min(y1, s.ay));
     livingLines.appendChild(el('line', {
       x1: bx.toFixed(1), y1: y0.toFixed(1), x2: bx.toFixed(1), y2: y1.toFixed(1),
       stroke: th.chalk2, 'stroke-width': (0.7 * K).toFixed(2),
       'stroke-linecap': 'round', opacity: 0.45
     }));
     livingLines.appendChild(el('line', {
-      x1: s.ax.toFixed(1), y1: s.ay.toFixed(1), x2: bx.toFixed(1), y2: s.ay.toFixed(1),
+      x1: s.ax.toFixed(1), y1: s.ay.toFixed(1), x2: bx.toFixed(1), y2: ly.toFixed(1),
       stroke: th.chalk3, 'stroke-width': (0.5 * K).toFixed(2), opacity: 0.4
     }));
     livingLines.appendChild(el('circle', {
