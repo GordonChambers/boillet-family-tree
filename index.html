@@ -415,23 +415,30 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
 .life-ticker button.ev-died{border-left-color:var(--madder)}
 .life-ticker button.ev-move{border-left-color:var(--woad)}
 
+/* The transport stands beside the scale rather than under it: the thing it
+   moves runs down the panel, so the handle that moves it should too. */
+.tl-body{display:flex;flex:1;min-height:0}
 .tl-player{
-  flex:none;padding:8px 10px 7px;border-top:1px solid var(--rule);
+  flex:none;display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:10px 8px;border-right:1px solid var(--rule);
 }
-.tl-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tl-row{display:flex;flex-direction:column;align-items:stretch;gap:6px}
 .tl-row button{
   display:inline-flex;align-items:center;justify-content:center;
   font-family:var(--mono);font-size:12px;padding:5px 9px;border:1px solid var(--rule2);
   border-radius:3px;color:var(--chalk2);min-width:40px;line-height:1;
 }
 .tl-row button:hover{color:var(--chalk);border-color:var(--woad)}
-.tl-speed{display:flex;align-items:center;gap:4px;margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--chalk3)}
-.tl-speed select{font-family:var(--mono);font-size:12px;background:var(--ink2);color:var(--chalk);border:1px solid var(--rule);border-radius:3px;padding:3px 5px}
-.tl-player input[type=range]{width:100%;accent-color:var(--woad);margin:0}
+.tl-speed{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--mono);font-size:12px;color:var(--chalk3);text-align:center}
+.tl-speed select{font-family:var(--mono);font-size:12px;background:var(--ink2);color:var(--chalk);border:1px solid var(--rule);border-radius:3px;padding:3px 4px;max-width:100%}
+.tl-player input[type=range]{
+  writing-mode:vertical-lr;-webkit-appearance:slider-vertical;appearance:slider-vertical;
+  flex:1;min-height:80px;width:22px;accent-color:var(--woad);margin:0;
+}
 
 .tl-chart{
   position:absolute;top:10px;right:10px;left:auto;bottom:auto;z-index:24;
-  width:min(390px,calc(100% - 20px));max-height:calc(100% - 20px);
+  width:min(430px,calc(100% - 20px));max-height:calc(100% - 20px);
   background:var(--ink1);border:1px solid var(--rule);border-radius:6px;
   box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
 }
@@ -444,7 +451,9 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   position:relative;flex:1;height:198px;overflow:hidden;
   mask-image:linear-gradient(180deg,transparent 0,#000 10%,#000 90%,transparent 100%);
   --hist-scale:62px;
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;
 }
+.hist-viewport.grabbing{cursor:grabbing}
 .hist-overlay{
   position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;overflow:visible;
 }
@@ -453,8 +462,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   transform:translateY(-50%);display:flex;align-items:center;gap:6px;
 }
 .hist-now{
-  flex:1;height:2px;background:var(--woad);
-  box-shadow:0 0 12px rgba(110,156,191,.45);
+  flex:1;height:1px;background:var(--woad);opacity:.7;
 }
 .hist-now-yr{
   flex:none;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--woad);line-height:1;
@@ -482,7 +490,7 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   .sheet.on{transform:translateY(0)}
   .grab{display:none}
   .legend{max-width:300px;bottom:16px}
-  .tl-chart{top:10px;right:10px;width:390px;height:calc(100% - 20px)}
+  .tl-chart{top:10px;right:10px;width:min(430px,40%);height:calc(100% - 20px)}
   .hist-viewport{height:auto;flex:1}
   .pcard{width:200px;font-size:15px}
 }
@@ -523,8 +531,19 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
   /* the events panel docks to the bottom edge, stream folded away */
   .tl-chart{top:auto;bottom:0;left:0;right:0;width:auto;max-height:none;
     border-radius:10px 10px 0 0;border-bottom:0;z-index:24}
+  /* on a phone the panel is a dock, so the transport goes back under the
+     stream and lies flat across the full width */
+  /* the dock is as tall as its contents, so the body must not try to fill a
+     height nobody has set — flex:1 here collapses the folded-out stream */
+  .tl-body{flex-direction:column-reverse;flex:none}
+  .tl-player{flex-direction:column;align-items:stretch;width:auto;
+    border-right:0;border-top:1px solid var(--rule);padding:8px 10px 7px;gap:6px}
+  .tl-row{flex-direction:row;align-items:center;gap:8px}
+  .tl-speed{flex-direction:row;margin-left:auto}
+  .tl-player input[type=range]{writing-mode:horizontal-tb;-webkit-appearance:auto;
+    appearance:auto;width:100%;height:auto;min-height:0}
   .tl-chart .hist-viewport{display:none}
-  body.events-open .tl-chart .hist-viewport{display:block;height:34vh}
+  body.events-open .tl-chart .hist-viewport{display:block;height:34vh;flex:none}
   .tl-chart-bar{display:flex;align-items:center;justify-content:space-between;
     width:100%;min-height:44px;cursor:pointer}
   .tl-caret{border:5px solid transparent;border-bottom-color:currentColor;
@@ -632,24 +651,26 @@ html[data-theme="light"] .life-ticker button{background:rgba(240,237,228,.92)}
       <div class="legend" id="lg-map"></div>
       <div class="tl-chart" id="tl-chart">
         <button class="tl-chart-bar" id="tl-chart-bar" aria-expanded="false"><span id="tl-chart-lab"></span><span class="tl-caret" aria-hidden="true"></span></button>
-        <div class="hist-viewport">
-          <svg class="hist-overlay" id="hist-overlay" aria-hidden="true"></svg>
-          <div class="hist-now-wrap" aria-hidden="true">
-            <div class="hist-now"></div>
-            <span class="hist-now-yr" id="hist-now-yr"></span>
-          </div>
-          <div class="hist-stream" id="hist-stream"></div>
-        </div>
-        <div class="tl-player">
-          <div class="tl-row">
-            <button id="tl-step-b" aria-label="−10">−10</button>
-            <button id="tl-play" aria-label="Play">▶</button>
-            <button id="tl-step-f" aria-label="+10">+10</button>
-            <div class="tl-speed"><span id="tl-speed-lab"></span>
-              <select id="tl-speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+        <div class="tl-body">
+          <div class="tl-player">
+            <input id="sl" type="range" min="1618" max="1992" value="1992" step="1" orient="vertical" aria-label="Année">
+            <div class="tl-row">
+              <button id="tl-play" aria-label="Play">▶</button>
+              <button id="tl-step-b" aria-label="−10">−10</button>
+              <button id="tl-step-f" aria-label="+10">+10</button>
+              <div class="tl-speed"><span id="tl-speed-lab"></span>
+                <select id="tl-speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
+              </div>
             </div>
           </div>
-          <input id="sl" type="range" min="1618" max="1992" value="1992" step="1">
+          <div class="hist-viewport" id="hist-viewport">
+            <svg class="hist-overlay" id="hist-overlay" aria-hidden="true"></svg>
+            <div class="hist-now-wrap" aria-hidden="true">
+              <div class="hist-now"></div>
+              <span class="hist-now-yr" id="hist-now-yr"></span>
+            </div>
+            <div class="hist-stream" id="hist-stream"></div>
+          </div>
         </div>
       </div>
       <div class="zoomer">
@@ -5222,6 +5243,45 @@ function measureTlDock() {
 }
 addEventListener('resize', measureTlDock);
 requestAnimationFrame(measureTlDock);
+
+/* Pull the stream up or down to run the years past. The scale is the thing
+   being moved, so dragging it up brings the later years to the line. */
+(function initHistScrub() {
+  const vp = document.getElementById('hist-viewport');
+  if (!vp) return;
+  let pid = null, startY = 0, base = 0, moved = 0;
+  vp.addEventListener('pointerdown', e => {
+    if (pid !== null || e.button > 0) return;
+    pid = e.pointerId; startY = e.clientY; base = mapTime; moved = 0;
+    stopPlay();
+    vp.classList.add('grabbing');
+  });
+  vp.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    const dy = e.clientY - startY;
+    moved = Math.max(moved, Math.abs(dy));
+    if (moved > 3 && !vp.hasPointerCapture(pid)) {
+      try { vp.setPointerCapture(pid); } catch (_) {}
+    }
+    if (moved <= 3) return;
+    e.preventDefault();
+    setYear(base - dy / (histLayout.pxYr || 8));
+  }, { passive: false });
+  const up = e => {
+    if (e.pointerId !== pid) return;
+    if (vp.hasPointerCapture(pid)) { try { vp.releasePointerCapture(pid); } catch (_) {} }
+    pid = null;
+    vp.classList.remove('grabbing');
+  };
+  vp.addEventListener('pointerup', up);
+  vp.addEventListener('pointercancel', up);
+  /* a wheel over the stream runs the years too, at a year a notch */
+  vp.addEventListener('wheel', e => {
+    e.preventDefault();
+    stopPlay();
+    setYear(mapTime + Math.sign(e.deltaY) * (e.shiftKey ? 10 : 1));
+  }, { passive: false });
+})();
 
 document.getElementById('tl-play').onclick = togglePlay;
 document.getElementById('tl-step-b').onclick = () => stepYear(-10);
